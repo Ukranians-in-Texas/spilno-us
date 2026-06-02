@@ -6,18 +6,20 @@ export function AdminQueuePage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchPending = async () => {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('approved', false)
-      .order('submitted_at', { ascending: false });
+  useEffect(() => {
+    const fetchPending = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('approved', false)
+        .order('submitted_at', { ascending: false });
 
-    if (!error) setItems(data || []);
-    setLoading(false);
-  };
+      if (!error) setItems(data || []);
+      setLoading(false);
+    };
 
-  useEffect(() => { fetchPending(); }, []);
+    fetchPending();
+  }, []);
 
   const approve = async (id) => {
     const { error } = await supabase.from('services').update({ approved: true }).eq('id', id);

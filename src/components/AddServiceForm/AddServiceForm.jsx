@@ -136,8 +136,7 @@ export function AddServiceForm() {
     const [query, setQuery] = useState("");
     const [images, setImages] = useState([]);
     const optionsRef = useRef(null);
-    const imagesRef = useRef(images);
-    imagesRef.current = images;
+    const imagesRef = useRef([]);
     const wasSubmittedRef = useRef(false);
     const removedIdsRef = useRef(new Set());
     const pageUnloadingRef = useRef(false);
@@ -149,6 +148,10 @@ export function AddServiceForm() {
     const dragCountRef = useRef(0);
     const [draggingId, setDraggingId] = useState(null);
     const [dragOverId, setDragOverId] = useState(null);
+
+    useEffect(() => {
+        imagesRef.current = images;
+    }, [images]);
 
     useEffect(() => {
         isUnmountingRef.current = false;
