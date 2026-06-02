@@ -299,17 +299,19 @@ export function AdminServicesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState(null);
 
-  const fetchAll = async () => {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .order('submitted_at', { ascending: false });
+  useEffect(() => {
+    const fetchAll = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('submitted_at', { ascending: false });
 
-    if (!error) setServices(data || []);
-    setLoading(false);
-  };
+      if (!error) setServices(data || []);
+      setLoading(false);
+    };
 
-  useEffect(() => { fetchAll(); }, []);
+    fetchAll();
+  }, []);
 
   const handleSave = (updated) => {
     if (updated === null) {
