@@ -5,17 +5,20 @@
 I'm building an admin dashboard for a Ukrainian professional services directory web app serving the Texas community. Here's the current setup:
 
 **Frontend (this repo):**
+
 - React 19 + Vite 7 + Tailwind CSS v4
 - React Router 7, deployed on Vercel
 - No Redux — React Context only
 - Bilingual: English / Ukrainian
 
 **Data layer:**
+
 - Airtable as the database/CMS (table: `services`)
 - Client never calls Airtable directly — always via Vercel serverless functions (`/api/services`, `/api/submit-service`)
 - Key Airtable fields: `title`, `description_en`, `description_ua`, `category`, `address`, `phone`, `email`, `website`, `instagram`, `facebook`, `linkedin`, `messenger`, `approved` (checkbox), `featured` (checkbox), `images` (Google Drive URLs), `submittedAt`, `notes`
 
 **Current workflow (manual and painful):**
+
 - Users submit services via a public form → record lands in Airtable as `approved: false`
 - Admin opens Airtable UI directly to review and check the `approved` checkbox
 - No moderation queue, no bulk actions, no notifications
@@ -47,22 +50,27 @@ Which of these are must-haves vs. nice-to-haves for a v1? What would give the mo
 Evaluate these options:
 
 **Option A: Same repo, `/admin` route, auth-gated**
+
 - Pros: shared components, shared Vercel deployment, one codebase
 - Cons: admin code ships in the public bundle (even if gated by auth), more complex build
 
 **Option B: Separate Vite app in a `/admin` subfolder (monorepo)**
+
 - Pros: clean separation, can have its own build/deploy, tree-shaken from public site
 - Cons: shared infra (Vercel, Airtable lib) needs to be extracted
 
-**Option C: Completely separate repository**
+#### Option C: Completely separate repository
+
 - Pros: fully independent, different stack possible, tightest security separation
 - Cons: duplication of API logic, harder to keep in sync
 
-**Option D: Use Airtable's built-in interface designer or a no-code tool (Retool, Appsmith, Budibase)**
+#### Option D: Use Airtable's built-in interface designer or a no-code tool (Retool, Appsmith, Budibase)
+
 - Pros: zero frontend code needed, fast to set up
 - Cons: vendor lock-in, less custom UX, potential cost
 
 Which approach is most pragmatic given:
+
 - Single developer
 - Current stack: React + Vercel serverless + Airtable
 - Admin is used infrequently (a few times per week)
@@ -95,6 +103,7 @@ If building a custom admin (not no-code), evaluate:
 - **Remix** — similar to Next.js, good data mutation model
 
 Key questions:
+
 - Does React Admin's Airtable data provider work well in practice?
 - Is the overhead of Next.js worth it for a small internal tool?
 - What's the fastest path to a working moderation queue?
@@ -111,6 +120,7 @@ Current Vercel serverless functions only handle public read (`GET /api/services`
 - `GET /api/admin/stats` — counts, trends
 
 Options:
+
 - Add more serverless functions to the existing repo under `/api/admin/*`
 - Use Airtable's REST API directly from the admin frontend (since it's not public-facing)
 - Use a different backend (e.g., a small Express server on Railway or Render)
@@ -122,6 +132,7 @@ Which is cleanest given the current Vercel + Airtable setup?
 ### 6. Delivery — What's the fastest path to a useful v1?
 
 Given all the above, recommend a concrete v1 plan:
+
 - Exact architecture choice and reasoning
 - Minimum feature set
 - Auth approach
@@ -133,6 +144,7 @@ Given all the above, recommend a concrete v1 plan:
 ### 7. Database — Should I stay on Airtable or migrate?
 
 Current Airtable usage:
+
 - ~17 fields per service record
 - Records are submitted via a public form, reviewed manually, then approved
 - Accessed only via Vercel serverless functions (never directly from the browser)
@@ -142,27 +154,33 @@ The admin dashboard pain point is that Airtable's own UI *is* the current admin 
 
 Evaluate whether migrating the database makes sense, considering:
 
-**Option A: Stay on Airtable**
+#### Option A: Stay on Airtable
+
 - Pros: zero migration effort, free tier works, non-technical admins can still open Airtable as a fallback
 - Cons: API rate limits (5 req/s), no real-time, querying is limited, building a proper admin still requires custom API work
 
-**Option B: Firebase Firestore**
+#### Option B: Firebase Firestore
+
 - Pros: real-time listeners, generous free tier, built-in auth (Firebase Auth), good React SDKs, admin SDK for serverless, Google ecosystem
 - Cons: NoSQL document model (schema flexibility but no joins), vendor lock-in, Firestore queries are limited (no full-text search), learning curve if unfamiliar
 
-**Option C: Supabase (Postgres)**
+#### Option C: Supabase (Postgres)
+
 - Pros: open-source, SQL (full queries, joins, full-text search), built-in auth + row-level security, real-time via websockets, REST and JS client, self-hostable
 - Cons: slightly more setup than Firebase, free tier has pausing after inactivity
 
-**Option D: PlanetScale / Neon / Turso (serverless SQL)**
+#### Option D: PlanetScale / Neon / Turso (serverless SQL)
+
 - Pros: Postgres/MySQL-compatible, designed for serverless/edge, no connection pool issues
 - Cons: no built-in auth or storage, need separate solutions
 
-**Option E: MongoDB Atlas**
+#### Option E: MongoDB Atlas
+
 - Pros: flexible schema, good free tier, Atlas App Services has built-in auth and rules
 - Cons: NoSQL, less suited for structured directory data, more complexity
 
 Key questions:
+
 - Does adding an admin dashboard become significantly easier with Firebase or Supabase compared to Airtable?
 - Firebase Auth + Firestore vs. Supabase Auth + Postgres — which is simpler end-to-end for a small app like this?
 - Is the migration effort (data export from Airtable, rewriting API functions) worth the long-term simplicity gain?

@@ -5,7 +5,7 @@ Supabase (PostgreSQL) — table: `services`
 > Previously: Airtable (migrated to Supabase 2026-03-08)
 
 | Column | Type | Default | Notes |
-|--------|------|---------|-------|
+| --- | --- | --- | --- |
 | id | uuid | gen_random_uuid() | Primary key |
 | title | text | — | Business name (required) |
 | description_en | text | — | Description in English |
@@ -32,5 +32,6 @@ Supabase (PostgreSQL) — table: `services`
 - **Authenticated (admin):** full access — SELECT, INSERT, UPDATE, DELETE
 
 SQL files in `supabase/`:
+
 - `schema.sql` — table definition + public read policy
 - `admin-rls.sql` — admin full-access policy (run once in Supabase SQL Editor)

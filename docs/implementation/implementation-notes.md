@@ -7,6 +7,7 @@ Assumptions, conflicts, and open questions tracked during MVP implementation.
 ## Conflicts Resolved
 
 ### Font: Inter vs Lato
+
 - **docs/MVP_DOCUMENT.md** specifies `Inter`
 - **Figma design** uses `Lato` throughout all frames
 - **Decision:** Using **Lato** (Figma is the design source of truth for visual details)
@@ -37,5 +38,5 @@ Assumptions, conflicts, and open questions tracked during MVP implementation.
 ## Implementation Log
 
 | Date | Milestone | Notes |
-|------|-----------|-------|
+| --- | --- | --- |
 | 2026-02-15 | Project scaffold | Vite + React + Tailwind initialized |

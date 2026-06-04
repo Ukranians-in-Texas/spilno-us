@@ -17,17 +17,20 @@ Best for: general protection, DDoS mitigation, bot traffic.
 Upstash free tier: 10k requests/day. Best for IP-based rate limiting inside Vercel serverless functions.
 
 **Install:**
+
 ```bash
 npm install @upstash/ratelimit @upstash/redis
 ```
 
 **Add to `.env`:**
-```
+
+```env
 UPSTASH_REDIS_REST_URL=...
 UPSTASH_REDIS_REST_TOKEN=...
 ```
 
 **Usage in any `/api` function:**
+
 ```js
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";

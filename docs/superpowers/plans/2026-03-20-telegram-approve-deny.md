@@ -32,6 +32,7 @@
 ## Task 1: Cloudinary Shared Helper
 
 **Files:**
+
 - Create: `api/_lib/cloudinary.js`
 - Create: `api/_lib/cloudinary.test.js`
 - Modify: `api/delete-image.js`
@@ -253,6 +254,7 @@ git commit -m "feat: extract Cloudinary deletion into shared helper"
 ## Task 2: Telegram Helper — `buildMessageText` + HTML Escaping + Inline Keyboard
 
 **Files:**
+
 - Modify: `api/_lib/telegram.js`
 - Create: `api/_lib/telegram.test.js`
 
@@ -448,6 +450,7 @@ git commit -m "feat: add buildMessageText, HTML escaping, and inline keyboard to
 ## Task 3: Submit Service — Capture Inserted ID
 
 **Files:**
+
 - Modify: `api/submit-service.js`
 - Modify: `api/submit-service.test.js`
 - Modify: `vite.config.js`
@@ -579,6 +582,7 @@ git commit -m "feat: pass inserted service ID to Telegram notification"
 ## Task 4: Telegram Webhook Handler
 
 **Files:**
+
 - Create: `api/telegram-webhook.js`
 - Create: `api/telegram-webhook.test.js`
 
@@ -990,23 +994,29 @@ git commit --allow-empty -m "feat: Telegram approve/deny via inline keyboard and
 
 1. Push to your deployment branch and wait for Vercel to deploy
 2. Add `TELEGRAM_WEBHOOK_SECRET` to Vercel environment variables (Settings → Environment Variables) — use a 32+ character random string, e.g.:
+
    ```bash
    openssl rand -hex 24
    ```
+
 3. Register the webhook (run in your terminal with env vars set):
+
    ```bash
    curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=https://<your-app>.vercel.app/api/telegram-webhook&secret_token=${TELEGRAM_WEBHOOK_SECRET}"
    ```
+
    Expected response: `{"ok":true,"result":true,"description":"Webhook was set"}`
 4. Verify: `curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"`
 
 - [ ] **Step 5.4: Manual smoke test**
 
 Submit a test service listing via the form → confirm the Telegram notification arrives with ✅ Approve and ❌ Delete buttons → tap Approve → confirm:
+
 - DB row has `approved = true`
 - Telegram message updated with `✅ Approved`, buttons removed
 
 Submit another listing → tap Delete → confirm:
+
 - DB row is gone
 - Cloudinary images removed
 - Telegram message updated with `🗑 Deleted`, buttons removed
