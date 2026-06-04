@@ -10,12 +10,12 @@ A deep, self-contained reference for **Spilno.us** — how the system fits toget
 
 **Mission:** A bilingual (English/Ukrainian) directory of trusted Ukrainian professional service providers for the Texas community.
 
-**State:** Production — live at **https://www.spilno.us/**.
+**State:** Production — live at **[spilno.us](https://www.spilno.us/)**.
 
 **Roles:**
 
 | Role | Account? | What they do | How |
-|------|----------|--------------|-----|
+| --- | --- | --- | --- |
 | Public visitor | No | Browse, search, filter approved listings | React SPA |
 | Submitter | No | Submit a new listing (pending review) | Public form + honeypot + rate limit |
 | Admin (single) | Yes (Supabase auth) | Approve / edit / delete / feature listings | Two redundant flows — see below |
@@ -77,7 +77,7 @@ flowchart TD
 
 ## 3. Repository Structure
 
-```
+```text
 spilno-us/
 ├── api/                       # Vercel serverless functions (Node)
 │   ├── _lib/
@@ -124,7 +124,7 @@ spilno-us/
 ├── vercel.json               # Security headers (CSP) + SPA rewrite
 ├── .env.example              # All env var names
 ├── CLAUDE.md                 # AI/contributor project instructions (current)
-└── README.md                 # ⚠️ STALE — describes old Airtable/Google arch (see §17)
+└── README.md                 # Project overview + setup (current)
 ```
 
 ---
@@ -132,7 +132,7 @@ spilno-us/
 ## 4. Tech Stack
 
 | Layer | Technology | Why (for this project) |
-|-------|-----------|------------------------|
+| --- | --- | --- |
 | UI framework | React 19 | Component model; lazy-loaded admin split |
 | Build / dev | Vite 7 | Fast HMR; doubles as local `/api/*` server via middleware plugin |
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`) | Utility-only; design tokens via `@theme` in `index.css` |
@@ -153,7 +153,7 @@ spilno-us/
 Single table: **`services`** ([supabase/schema.sql](../supabase/schema.sql)). No separate users or categories tables — categories are hardcoded in [src/data/categories.js](../src/data/categories.js). **[Assumption]** the categories-in-code choice keeps bilingual labels and ordering in one place and avoids DB churn.
 
 | Column | Type | Purpose |
-|--------|------|---------|
+| --- | --- | --- |
 | `id` | uuid (PK, `gen_random_uuid()`) | Primary key |
 | `title` | text (not null) | Business / provider name |
 | `description_en` | text | English description |
@@ -239,14 +239,14 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 ### Public
 
 | Method | Path | Purpose |
-|--------|------|---------|
+| --- | --- | --- |
 | GET | `/api/services` | List approved services; query: `category`, `limit`, `lang` (`en`/`ua`). Cached 5 min. |
 | POST | `/api/submit-service` | Submit a new listing (validated, rate-limited, honeypot). |
 
 ### Authenticated (called from the admin SPA; gated by header/secret, not session)
 
 | Method | Path | Purpose |
-|--------|------|---------|
+| --- | --- | --- |
 | POST | `/api/delete-image` | Delete one Cloudinary image by `publicId`. |
 
 > Note: `/api/delete-image` has **no auth check** itself — it deletes any valid `publicId`. It is called from the admin UI but is not access-controlled. See [§14 Security](#14-security-model) and [§17](#17-open-questions--future-work).
@@ -254,13 +254,13 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 ### Webhooks
 
 | Method | Path | Purpose |
-|--------|------|---------|
+| --- | --- | --- |
 | POST | `/api/telegram-webhook` | Telegram callback handler; requires `x-telegram-bot-api-secret-token`. |
 
 ### Cron
 
 | Method | Path | Schedule | Purpose |
-|--------|------|----------|---------|
+| --- | --- | --- | --- |
 | GET | `/api/keep-alive` | `0 0 * * *` (daily 00:00 UTC) | Pings DB (`select id limit 1`) to keep the Supabase project from idling. |
 
 > Admin reads/writes to the `services` table go **directly** to Supabase from the browser (anon key + JWT + RLS), not through `/api`.
@@ -270,7 +270,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 ## 8. Frontend
 
 | Route | Component | Notable behavior |
-|-------|-----------|------------------|
+| --- | --- | --- |
 | `/` | `HomePage` | Search/category filtering; highlighted (≤6, featured-first) + rest sections |
 | `/add-service` | `AddServicePage` → `AddServiceForm` | Inline Cloudinary upload, honeypot, client validation |
 | `/privacy` | `PrivacyPage` | Static |
@@ -289,7 +289,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 **82 tests across 6 files**, all Vitest. External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network/DB calls.
 
 | File | Tests | Covers |
-|------|-------|--------|
+| --- | --- | --- |
 | [api/submit-service.test.js](../api/submit-service.test.js) | 26 | All validation rules, honeypot, rate limiting, image filtering, success/error paths |
 | [api/telegram-webhook.test.js](../api/telegram-webhook.test.js) | 15 | Secret check, UUID/action validation, approve/delete, idempotency, errors |
 | [api/_lib/telegram.test.js](../api/_lib/telegram.test.js) | 11 | Message building, escaping, notification payload |
@@ -309,7 +309,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 ## 10. Local Development
 
-**Prerequisites:** Node.js (project lists Node 18+ in README, but Vite 7 effectively wants Node 20+; **[Assumption]** use Node 20 LTS or newer), npm, and accounts for Supabase, Cloudinary, Telegram.
+**Prerequisites:** Node.js 20+ (Vite 7 requires it), npm, and accounts for Supabase, Cloudinary, Telegram.
 
 **Setup:**
 
@@ -324,7 +324,7 @@ npm run dev              # Vite dev server with local /api middleware
 **Commands:**
 
 | Command | What it does |
-|---------|--------------|
+| --- | --- |
 | `npm run dev` | Vite dev server + local `/api/submit-service`, `/api/delete-image`, `/api/services` middleware |
 | `npm run build` | Production build (`vite build`) |
 | `npm run preview` | Serve the production build locally |
@@ -344,7 +344,7 @@ npm run dev              # Vite dev server with local /api middleware
 ## 11. Environment Variables
 
 | Name | Scope | Required | Secret | Purpose |
-|------|-------|----------|--------|---------|
+| --- | --- | --- | --- | --- |
 | `VITE_CONTACT_EMAIL` | client | Optional | No | Contact email shown in UI |
 | `VITE_CLOUDINARY_CLOUD_NAME` | client | Yes (uploads) | No | Cloudinary cloud for unsigned upload |
 | `VITE_CLOUDINARY_UPLOAD_PRESET` | client | Yes (uploads) | No | Unsigned upload preset |
@@ -381,7 +381,7 @@ npm run dev              # Vite dev server with local /api middleware
 The Vite dev middleware in [vite.config.js](../vite.config.js) reimplements three endpoints and **does not match** the deployed functions. Treat the deployed `api/*.js` as the source of truth.
 
 | Aspect | Deployed `api/submit-service.js` | Local `vite.config.js` middleware |
-|--------|----------------------------------|-----------------------------------|
+| --- | --- | --- |
 | Required fields | category, businessName, descEn, descUa, **email** | category, businessName, descEn, descUa, **phone**, email |
 | Category allowlist | Enforced | Not enforced |
 | Format regexes | Enforced | Not enforced |
@@ -421,7 +421,7 @@ Implication: a submission that passes locally may be rejected in production, and
 ## 16. Glossary
 
 | Term | Meaning |
-|------|---------|
+| --- | --- |
 | **Service** | A directory listing (one row in `services`) — a provider/business, not a microservice. |
 | **Approved** | `approved=true`; the only flag that makes a row publicly visible. |
 | **Featured / featured_order** | Admin-curated homepage highlight and its sort position (lower first; null sorts last). |
@@ -437,7 +437,7 @@ Implication: a submission that passes locally may be rejected in production, and
 
 Items the code could not confirm, or known gaps worth flagging:
 
-1. **README content is stale.** [README.md](../README.md) describes an **Airtable + Google Forms + Google Drive** architecture that no longer matches the code (now Supabase + Cloudinary + custom form + Telegram). Its doc links were repaired to point at the reorganized `docs/` tree (the MVP/decisions/security/gaps files live under `docs/architecture/`), but the prose itself still needs a rewrite. [CLAUDE.md](../CLAUDE.md) is the accurate source.
+1. **Historical planning docs are stale.** README and CLAUDE.md are current, but several files under `docs/architecture/` and `docs/plans/` predate the current stack (they still describe the earlier Airtable / Google Forms / Google Drive design). They are kept as historical snapshots; this guide and [CLAUDE.md](../CLAUDE.md) are the accurate sources.
 2. **`/api/delete-image` is unauthenticated.** Add an auth check (e.g. verify a Supabase admin JWT) or move deletion server-side behind the webhook/RLS, so it can't be called by anyone.
 3. **`messenger` column is half-wired.** Present in schema + admin `EditPanel`, but not collected by the public form or written by `submit-service.js`. Decide: admin-only field, or wire it end-to-end, or drop it.
 4. **Orphaned Cloudinary images.** Images upload to Cloudinary *before* the form is submitted; if the user abandons the form, the images are never referenced and are not cleaned up. **[Assumption]** this is accepted. Consider a cleanup strategy.
