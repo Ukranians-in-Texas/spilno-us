@@ -403,6 +403,17 @@ Implication: a submission that passes locally may be rejected in production, and
 - **Browser headers** ([vercel.json](../vercel.json)): a strict CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` disabling camera/mic/geo.
 - **Known weak spot:** `/api/delete-image` has no authentication — anyone who knows a Cloudinary `publicId` can delete that image. It is only *called* from the admin UI but is not *protected*. See [§17](#17-open-questions--future-work).
 
+### Rate limiting
+
+The only rate limit is on submissions, in [api/submit-service.js](../api/submit-service.js):
+
+- **Scope:** `POST /api/submit-service` only. No limit on `/api/services`, `/api/delete-image`, or `/api/telegram-webhook` (the webhook is gated by a secret instead).
+- **Mechanism:** before insert, count `services` rows whose `email` (case-insensitive `ilike`) matches and whose `submitted_at` is within the last 24h. If the count is `>= 3`, return `429` and skip the insert.
+- **Key:** the submitter's email — not IP. There is no Redis/KV store; the existing `services` table is the counter.
+- **Limitations:** trivially bypassed by changing email; counts only *persisted* rows (honeypot-rejected and validation-failed requests don't count); enforced **only in production** — the local Vite middleware skips it (see §13).
+
+For stronger or IP-based limiting (Cloudflare in front, or Upstash Redis + `@upstash/ratelimit` inside the function), see [docs/rate-limiting.md](rate-limiting.md). The current email limit is considered sufficient for form spam.
+
 ---
 
 ## 15. Key Patterns
@@ -446,4 +457,3 @@ Items the code could not confirm, or known gaps worth flagging:
 7. **Admin provisioning + Telegram webhook registration are manual.** No scripts in-repo for creating the admin user / `app_metadata.role` claim or for `setWebhook`. Document the exact steps (or script them) so the setup is reproducible.
 8. **Production branch unconfirmed.** CLAUDE.md says `main` auto-deploys; the repo's PR base is `development`. Confirm the Vercel project's production branch.
 9. **No component/e2e tests.** Critical UI flows (submission, admin approve/edit/delete, filtering) are untested. Consider Testing Library + a Playwright smoke test.
-```
