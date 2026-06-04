@@ -46,10 +46,11 @@ ukrainians-in-texas/
 
 Comprehensive planning and technical documentation:
 
-- **[MVP Specification](docs/MVP_DOCUMENT.md)** - Complete technical spec, design system, and component architecture
-- **[Technology Decisions](docs/DECISIONS.md)** - Why we chose Airtable, Vercel, Google Forms, etc.
-- **[Security Concerns](docs/SECURITY_CONCERNS.md)** - Deep dive into security implementation
-- **[MVP Gaps](docs/MVP_GAPS.md)** - Edge cases, accessibility, SEO, and performance considerations
+- **[Technical Guide](docs/technical-guide.md)** - Current architecture, data model, subsystems, ops (start here)
+- **[MVP Specification](docs/architecture/mvp-document.md)** - Original technical spec, design system, and component architecture
+- **[Technology Decisions](docs/architecture/decisions.md)** - Why we chose Airtable, Vercel, Google Forms, etc.
+- **[Security Concerns](docs/architecture/security-concerns.md)** - Deep dive into security implementation
+- **[MVP Gaps](docs/architecture/mvp-gaps.md)** - Edge cases, accessibility, SEO, and performance considerations
 
 ## Getting Started
 
