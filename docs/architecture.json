@@ -1,0 +1,150 @@
+{
+  "name": "Spilno.us",
+  "description": "Ukrainian professional services directory for the Texas community — a React SPA on Vercel that reads approved listings through serverless functions, accepts public submissions reviewed via a Telegram bot or an admin dashboard, and stores data in Supabase Postgres.",
+  "categories": [
+    { "id": "actor",    "label": "Actor",       "color": "#e879f9" },
+    { "id": "client",   "label": "Client",      "color": "#38bdf8" },
+    { "id": "server",   "label": "Server",      "color": "#4ade80" },
+    { "id": "data",     "label": "Data store",  "color": "#fbbf24" },
+    { "id": "job",      "label": "Background",  "color": "#fb923c" },
+    { "id": "external", "label": "External",    "color": "#f87171" }
+  ],
+  "nodes": [
+    { "id": "public-user", "label": "Public user", "category": "actor", "detail": "Browses the directory and submits listings" },
+    { "id": "admin", "label": "Admin / reviewer", "category": "actor", "detail": "Approves & deletes via dashboard or Telegram taps" },
+
+    { "id": "home-page", "label": "HomePage", "category": "client", "path": "src/pages/HomePage.jsx", "detail": "Browse, search & category filter" },
+    { "id": "add-form", "label": "AddServiceForm", "category": "client", "path": "src/components/AddServiceForm/", "detail": "Submit a listing + upload images" },
+    { "id": "admin-dashboard", "label": "Admin dashboard", "category": "client", "path": "src/pages/admin/", "detail": "Login, review queue, manage services" },
+
+    { "id": "api-services", "label": "GET /api/services", "category": "server", "path": "api/services.js", "detail": "Returns approved services (cached 5m / SWR 10m)" },
+    { "id": "api-submit", "label": "POST /api/submit-service", "category": "server", "path": "api/submit-service.js", "detail": "Validates, rate-limits, inserts, notifies Telegram" },
+    { "id": "api-telegram-webhook", "label": "POST /api/telegram-webhook", "category": "server", "path": "api/telegram-webhook.js", "detail": "Approve/Delete button callbacks (secret-verified)" },
+    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one image from Cloudinary by public id" },
+
+    { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * * — pings DB to keep it warm" },
+
+    { "id": "services-table", "label": "services table", "category": "data", "path": "supabase/schema.sql", "detail": "Supabase Postgres, RLS: public reads approved=true" },
+
+    { "id": "cloudinary", "label": "Cloudinary", "category": "external", "detail": "Image hosting — unsigned upload + signed admin delete" },
+    { "id": "telegram", "label": "Telegram Bot API", "category": "external", "detail": "Submission notifications + inline Approve/Delete buttons" },
+    { "id": "supabase-auth", "label": "Supabase Auth", "category": "external", "detail": "Admin email/password sign-in (anon key + RLS)" }
+  ],
+  "edges": [
+    { "from": "public-user", "to": "home-page" },
+    { "from": "home-page", "to": "api-services" },
+    { "from": "api-services", "to": "services-table" },
+    { "from": "services-table", "to": "api-services" },
+    { "from": "api-services", "to": "home-page" },
+
+    { "from": "public-user", "to": "add-form" },
+    { "from": "add-form", "to": "cloudinary" },
+    { "from": "cloudinary", "to": "add-form" },
+    { "from": "add-form", "to": "api-submit" },
+    { "from": "api-submit", "to": "services-table" },
+    { "from": "api-submit", "to": "telegram" },
+    { "from": "api-submit", "to": "add-form" },
+
+    { "from": "admin", "to": "telegram" },
+    { "from": "telegram", "to": "api-telegram-webhook" },
+    { "from": "api-telegram-webhook", "to": "services-table" },
+    { "from": "api-telegram-webhook", "to": "cloudinary" },
+    { "from": "api-telegram-webhook", "to": "telegram" },
+
+    { "from": "admin", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "supabase-auth" },
+    { "from": "supabase-auth", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "services-table" },
+    { "from": "services-table", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "api-delete-image" },
+    { "from": "api-delete-image", "to": "cloudinary" },
+
+    { "from": "keep-alive", "to": "services-table" }
+  ],
+  "flows": [
+    {
+      "id": "submit-listing",
+      "name": "Submit a listing",
+      "description": "Public user adds a business: images upload straight to Cloudinary, then the form posts to the API which validates, rate-limits, inserts an unapproved row, and pings Telegram.",
+      "steps": [
+        { "from": "public-user", "to": "add-form", "label": "Fills out the form", "detail": "src/components/AddServiceForm/AddServiceForm.jsx" },
+        { "from": "add-form", "to": "cloudinary", "label": "Unsigned image upload", "detail": "POST api.cloudinary.com/v1_1/<cloud>/image/upload (upload_preset)" },
+        { "from": "cloudinary", "to": "add-form", "label": "Returns secure_url", "detail": "https://res.cloudinary.com/... stored in form state" },
+        { "from": "add-form", "to": "api-submit", "label": "POST submission", "detail": "fetch('/api/submit-service') with fields + imageUrls" },
+        { "from": "api-submit", "to": "services-table", "label": "Rate-limit check + insert", "detail": "max 3/email/24h, then insert { approved:false }" },
+        { "from": "api-submit", "to": "telegram", "label": "Notify reviewers", "detail": "sendMessage with inline Approve/Delete buttons (api/_lib/telegram.js)" },
+        { "from": "api-submit", "to": "add-form", "label": "{ success: true }", "detail": "200 — form shows confirmation" }
+      ]
+    },
+    {
+      "id": "browse-services",
+      "name": "Browse the directory",
+      "description": "Visitor loads the homepage; the SPA reads approved listings through the serverless API, never touching Supabase directly.",
+      "steps": [
+        { "from": "public-user", "to": "home-page", "label": "Opens the directory", "detail": "search & category filter live in HomePage state" },
+        { "from": "home-page", "to": "api-services", "label": "GET services", "detail": "fetchServices() → /api/services?category&limit&lang (src/services/api.js)" },
+        { "from": "api-services", "to": "services-table", "label": "Select approved rows", "detail": "fetchApprovedServices() (api/_lib/supabase.js)" },
+        { "from": "services-table", "to": "api-services", "label": "Approved rows", "detail": "RLS allows only approved=true" },
+        { "from": "api-services", "to": "home-page", "label": "JSON response", "detail": "Cache-Control s-maxage=300, stale-while-revalidate=600" }
+      ]
+    },
+    {
+      "id": "telegram-approve",
+      "name": "Approve from Telegram",
+      "description": "Reviewer taps Approve in the Telegram message; the webhook verifies the secret, flips approved=true, and edits the message.",
+      "steps": [
+        { "from": "admin", "to": "telegram", "label": "Taps ✅ Approve", "detail": "inline button callback_data approve_<uuid>" },
+        { "from": "telegram", "to": "api-telegram-webhook", "label": "callback_query", "detail": "x-telegram-bot-api-secret-token header verified" },
+        { "from": "api-telegram-webhook", "to": "services-table", "label": "Set approved=true", "detail": "update().eq('id', uuid) — idempotent if already approved" },
+        { "from": "api-telegram-webhook", "to": "telegram", "label": "Edit message ✅ Approved", "detail": "editMessageText, clears inline keyboard" }
+      ]
+    },
+    {
+      "id": "telegram-delete",
+      "name": "Delete from Telegram",
+      "description": "Reviewer taps Delete; the webhook removes the listing's Cloudinary images, then the row, then edits the message.",
+      "steps": [
+        { "from": "admin", "to": "telegram", "label": "Taps ❌ Delete", "detail": "inline button callback_data delete_<uuid>" },
+        { "from": "telegram", "to": "api-telegram-webhook", "label": "callback_query", "detail": "secret-verified; fetches row first" },
+        { "from": "api-telegram-webhook", "to": "cloudinary", "label": "Delete images", "detail": "deleteCloudinaryImages(row.images) (api/_lib/cloudinary.js)" },
+        { "from": "api-telegram-webhook", "to": "services-table", "label": "Delete row", "detail": "delete().eq('id', uuid)" },
+        { "from": "api-telegram-webhook", "to": "telegram", "label": "Edit message 🗑 Deleted", "detail": "editMessageText, clears inline keyboard" }
+      ]
+    },
+    {
+      "id": "admin-login",
+      "name": "Admin signs in",
+      "description": "Admin authenticates against Supabase Auth from the browser; the resulting session unlocks RLS-gated full access.",
+      "steps": [
+        { "from": "admin", "to": "admin-dashboard", "label": "Enters credentials", "detail": "src/pages/admin/AdminLoginPage.jsx" },
+        { "from": "admin-dashboard", "to": "supabase-auth", "label": "signInWithPassword", "detail": "supabase.auth (anon key, src/lib/supabaseClient.js)" },
+        { "from": "supabase-auth", "to": "admin-dashboard", "label": "Session token", "detail": "authenticated session enables admin RLS policy" }
+      ]
+    },
+    {
+      "id": "admin-queue-manage",
+      "name": "Manage queue (dashboard)",
+      "description": "Authenticated dashboard reads pending rows directly via supabase-js; deleting calls the image API then removes the row.",
+      "steps": [
+        { "from": "admin", "to": "admin-dashboard", "label": "Opens review queue", "detail": "src/pages/admin/AdminQueuePage.jsx" },
+        { "from": "admin-dashboard", "to": "services-table", "label": "Read / update / delete", "detail": "supabase-js direct, anon key + admin RLS (approved=false rows)" },
+        { "from": "services-table", "to": "admin-dashboard", "label": "Pending rows", "detail": "order by submitted_at desc" },
+        { "from": "admin-dashboard", "to": "api-delete-image", "label": "Delete each image", "detail": "POST /api/delete-image { publicId } before row delete" },
+        { "from": "api-delete-image", "to": "cloudinary", "label": "Destroy asset", "detail": "deleteCloudinaryImageById (signed API)" }
+      ]
+    },
+    {
+      "id": "keep-alive-cron",
+      "name": "Keep-alive cron",
+      "description": "A daily Vercel Cron invocation runs a trivial query so Supabase doesn't idle out.",
+      "steps": [
+        { "from": "keep-alive", "to": "services-table", "label": "SELECT id LIMIT 1", "detail": "Vercel Cron schedule 0 0 * * * (api/keep-alive.js)" }
+      ]
+    }
+  ],
+  "meta": {
+    "generatedAt": "2026-06-16",
+    "sourceCommit": "3133adf",
+    "notes": "Server _lib helpers (api/_lib/supabase.js, telegram.js, cloudinary.js) are folded into the functions that call them. 'services-table' represents the Supabase Postgres `services` table; 'supabase-auth' is the same Supabase project's Auth service, split out so the admin-login flow reads clearly. Public reads go only through /api/services; the admin dashboard talks to Supabase directly with the anon key under RLS. The local Vite dev middleware reimplements /api/submit-service with looser validation — this map reflects the authoritative deployed api/*.js handlers."
+  }
+}
