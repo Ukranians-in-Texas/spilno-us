@@ -13,7 +13,7 @@ Key architectural and technical decisions for the Ukrainians in Texas service di
 ### Alternatives Considered
 
 | Option | Pros | Cons | Complexity |
-| -------- | ------ | ------ | ------------ |
+| --- | --- | --- | --- |
 | **Airtable** | Spreadsheet-like UI, visual, perfect for manual approval, no SQL needed, 1,200 records free | Need Vercel proxy for security, paid tier after 1,200 records ($20/month), no built-in auth | ⭐⭐⭐⭐⭐ Very Simple |
 | **Supabase** | Better free tier (unlimited records), built-in Row Level Security, PostgreSQL, built-in auth | No spreadsheet UI, requires basic SQL knowledge | ⭐⭐⭐ Medium |
 | **Firebase/Firestore** | Google product, generous free tier, real-time, NoSQL | Firebase console is complex, security rules tricky, pricing scales up | ⭐⭐⭐ Medium |
@@ -44,6 +44,7 @@ Started with Airtable for simplicity, but migrated to Supabase when we decided t
 ### Why Not Airtable (original choice)?
 
 Airtable worked well for MVP but lacked:
+
 - Built-in authentication (needed for admin dashboard)
 - Row-level security (hard to enforce access control)
 - Free tier was capped at 1,200 records
@@ -59,7 +60,7 @@ Airtable worked well for MVP but lacked:
 ### Alternatives Considered
 
 | Option | Pros | Cons | Best For |
-|--------|------|------|----------|
+| --- | --- | --- | --- |
 | **Vercel** | Free tier generous, easy React deploy, serverless functions integrated, auto-detects Vite, excellent DX | Vendor lock-in, serverless functions cold start | React apps with API routes |
 | **Netlify** | Free tier generous, built-in forms, serverless functions, similar to Vercel, good docs | Similar vendor lock-in, slightly slower builds | Static sites, Jamstack |
 | **Cloudflare Pages** | Fast global CDN, free tier, Workers for API, generous limits, good performance | Smaller ecosystem, Workers different from standard Node.js, less React-focused | Static sites, edge computing |
@@ -107,7 +108,7 @@ Airtable worked well for MVP but lacked:
 ### Alternatives Considered
 
 | Option | Pros | Cons | Cost |
-|--------|------|------|------|
+| --- | --- | --- | --- |
 | **Google Drive** | Free, integrates with Google Forms, unlimited storage (15GB free), simple for users | No automatic optimization, manual URL conversion needed, not designed for web hosting | Free (15GB) |
 | **Cloudinary** | Automatic optimization, image transformations, CDN, purpose-built for images | Free tier limited (25 credits/month) | Free tier limited |
 | **Vercel Blob** | Integrated with Vercel, simple API, good DX | Paid only ($0.15/GB storage + $0.30/GB bandwidth) | Paid ($0.15/GB) |
@@ -145,7 +146,7 @@ Airtable worked well for MVP but lacked:
 ### Alternatives Considered
 
 | Option | Pros | Cons |
-|--------|------|------|
+| --- | --- | --- |
 | **Google Forms** | Zero infrastructure, built-in spam protection, free, no code needed | No custom branding, separate from site, manual data import to database |
 | **Custom React Form** | Matches site design, submits directly to Supabase, better UX, image upload built-in | Requires spam protection, more code to maintain |
 
@@ -171,6 +172,7 @@ Airtable worked well for MVP but lacked:
 ### Spam protection
 
 Custom form includes:
+
 - Honeypot field (bots fill it, humans don't)
 - Manual review: all submissions start as `approved = false` and require admin approval
 
@@ -184,7 +186,7 @@ Custom form includes:
 
 ### Structure
 
-```
+```text
 community-frontend/
 ├── api/              # Vercel serverless functions (server-side)
 ├── src/              # React frontend (client-side)
@@ -219,7 +221,7 @@ community-frontend/
 ## Summary
 
 | Decision | Choice | Why |
-|----------|--------|-----|
+| --- | --- | --- |
 | **Database** | Supabase | Built-in auth + RLS, needed for admin dashboard |
 | **Hosting** | Vercel | Best DX for React + serverless functions |
 | **Images** | Cloudinary | Optimized delivery, direct upload from browser |

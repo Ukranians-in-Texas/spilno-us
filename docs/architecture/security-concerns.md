@@ -160,7 +160,7 @@ function isValidURL(url) {
 ## Summary: Security Implementation Priority
 
 | Priority | Issue | Effort | Status |
-|----------|-------|--------|--------|
+| --- | --- | --- | --- |
 | 1 | DB credentials | Low (RLS + two clients) | ✅ Supabase anon key + RLS |
 | 2 | Form spam | Low (honeypot + manual review) | ✅ Custom form + admin queue |
 | 3 | XSS | Low (React default behavior) | ✅ React escaping |

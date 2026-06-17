@@ -3,6 +3,7 @@
 ## What changes and why
 
 ### 1. `src/components/AddServiceForm/AddServiceForm.jsx`
+
 - Add `uploadToCloudinary(file)` helper — POSTs directly to Cloudinary's unsigned upload API using two `VITE_` env vars (safe to expose for unsigned presets)
 - Add `images` state: array of `{ id, previewUrl, cloudUrl, status: 'uploading'|'done'|'error' }`
 - Add file input in the Optional section — max 5 files, 5 MB each, `accept="image/*"`
@@ -11,6 +12,7 @@
 - Include `imageUrls` (array of Cloudinary URLs) in the POST body
 
 ### 2. `api/submit-service.js`
+
 - Destructure `imageUrls` from request body
 - Validate: cap at 5 URLs, confirm each starts with `https://res.cloudinary.com/` before saving
 - Save as comma-separated string in the Airtable `images` field

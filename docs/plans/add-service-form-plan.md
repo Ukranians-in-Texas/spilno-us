@@ -1,12 +1,14 @@
 # Add Service Form — Implementation Plan
 
 ## Overview
+
 Replace the external Google Form link with a native `/add-service` page.
 Submissions go directly to Airtable with `approved = false`. Admin reviews in Airtable and checks the `approved` checkbox to publish.
 
 ---
 
 ## Route
+
 `/add-service` — new page, linked from the existing "Add service" buttons in Header and ServiceList.
 
 ---
@@ -14,7 +16,7 @@ Submissions go directly to Airtable with `approved = false`. Admin reviews in Ai
 ## Form Fields
 
 | # | Label (EN) | Label (UA) | Airtable Field | Type | Required |
-|---|-----------|-----------|----------------|------|----------|
+| --- | --- | --- | --- | --- | --- |
 | 1 | Category | Категорія | `category` | dropdown (subcategory list from `categories.js`) | yes |
 | 2 | Business name | Назва бізнесу | `title` | text | yes |
 | 3 | Description (English) | Опис англійською | `description_en` | textarea | yes |
@@ -36,6 +38,7 @@ Submissions go directly to Airtable with `approved = false`. Admin reviews in Ai
 ---
 
 ## Category Selector
+
 Single searchable combobox — user types to filter and selects a **subcategory**.
 Parent categories are non-selectable group headers in the dropdown (e.g. "Beauty & Wellness" as a heading, "Brow & Lash Services" as a selectable option underneath).
 
@@ -52,7 +55,7 @@ Parent categories are non-selectable group headers in the dropdown (e.g. "Beauty
 Validated client-side on blur + on submit. Required fields also validated server-side.
 
 | Field | Rule |
-| - | - |
+| --- | --- |
 | Category | Must be a value from the known subcategory list |
 | Business name | Non-empty |
 | Description EN | Non-empty |
@@ -69,7 +72,9 @@ Error messages shown inline below each field on blur and on submit attempt.
 ---
 
 ## Spam Protection
+
 **Honeypot field** — simplest, zero user friction.
+
 - A hidden `<input>` field named something innocuous (e.g. `website_url`) is added to the DOM but hidden with CSS (`display: none` / off-screen positioning — NOT `display:none` in inline style, bots see that).
 - If the field has any value on submit → silently reject (return 200 so bots don't retry).
 - No API keys or third-party services needed.
@@ -78,7 +83,7 @@ Error messages shown inline below each field on blur and on submit attempt.
 
 ## Submission Flow
 
-```
+```text
 User fills form → POST /api/submit-service
   → Vercel serverless function validates + honeypot check
   → POST to Airtable REST API
@@ -94,6 +99,7 @@ Admin sees new record in Airtable
 ---
 
 ## API — New Serverless Function
+
 `api/submit-service.js`
 
 - Method: `POST`
@@ -110,37 +116,46 @@ Admin sees new record in Airtable
 Matches the existing design system — Tailwind utility classes only, light + dark theme.
 
 **Page layout** — same pattern as `PrivacyPage`:
+
 - Page background: `bg-light-gray dark:bg-light-gray` (CSS var adapts automatically)
 - Content container: `max-w-2xl mx-auto px-4 py-12`
 
 **Form card** — same as `ServiceCard`:
+
 - `bg-white dark:bg-[#0F2040] rounded-[30px] shadow-card p-6 md:p-8`
 
 **Input / Textarea fields:**
+
 - `w-full rounded-xl border border-stroke bg-white dark:bg-[#0A1628] text-text px-4 py-3 text-base`
 - Focus: `focus:outline-none focus:border-brand-blue`
 - Dark placeholder: `placeholder:text-text/40`
 - Error state: `border-brand-red`
 
 **Labels:**
+
 - `text-sm font-bold text-dark-blue mb-1`
 
 **Hint text** (e.g. "Leave blank if no address"):
+
 - `text-xs text-text/50 mt-1`
 
 **Error messages:**
+
 - `text-xs text-brand-red mt-1`
 
 **Section divider** (optional fields grouped separately):
+
 - `border-t border-stroke pt-6` with a heading like "Optional" in `text-sm text-text/50`
 
 **Submit button** — existing `Button` component, `variant="primary"` (brand-red, full width on mobile)
 
 **Success / Error states** — inline message below the form, not a separate page:
+
 - Success: `text-brand-blue` with a checkmark icon
 - Error: `text-brand-red` with retry option
 
 **Combobox dropdown** (headlessui):
+
 - Options panel: `bg-white dark:bg-[#0F2040] border border-stroke rounded-2xl shadow-card mt-1`
 - Group header (parent category): `text-xs font-bold text-text/50 uppercase px-3 pt-3 pb-1`
 - Option: `px-3 py-2 text-base text-text cursor-pointer`
@@ -151,13 +166,14 @@ Matches the existing design system — Tailwind utility classes only, light + da
 ## Frontend
 
 ### New files
+
 - `src/pages/AddServicePage.jsx` — page wrapper with `<Header>` + `<Footer>`, same structure as `PrivacyPage`
 - `src/components/AddServiceForm/AddServiceForm.jsx` — the form component; uses `<form noValidate>` to disable browser native validation
 
 ### Input `autocomplete` attributes
 
 | Field | `autoComplete` value |
-| - | - |
+| --- | --- |
 | Business name | `organization` |
 | Phone | `tel` |
 | Email | `email` |
@@ -165,6 +181,7 @@ Matches the existing design system — Tailwind utility classes only, light + da
 | Website | `url` |
 
 ### Existing files to update
+
 - `src/App.jsx` (or router config) — add `/add-service` route
 - `src/components/UI/Button.jsx` — add `to` prop: when provided, renders React Router `<Link to={to}>` instead of `<a href>`; existing `href` prop (external links, new tab) unchanged
 - `src/components/Header/Header.jsx` — replace `href={googleFormUrl}` with `to="/add-service"` on Button
@@ -177,6 +194,7 @@ Matches the existing design system — Tailwind utility classes only, light + da
 - `CLAUDE.md` — remove `VITE_GOOGLE_FORM_URL` env var (no longer needed)
 
 ### States
+
 - Idle — form ready to fill
 - Submitting — button disabled, spinner (`SpinnerIcon` added to `Icon.jsx`, animated with Tailwind `animate-spin`)
 - Success — form resets, confirmation message shown + "Back to home" link
@@ -242,7 +260,9 @@ Both `en.json` and `ua.json` must be updated. EN keys shown below; UA translatio
 ---
 
 ## Open Question — Images
+
 Skipping for MVP. When ready to add image upload, options:
+
 - **Cloudinary** (recommended) — free tier, simple upload widget, returns URL to store in Airtable
 - **Airtable Attachments API** — would require changing `images` field type from `multilineText` to `multipleAttachments`
 
@@ -258,6 +278,7 @@ Form cannot be submitted without checking it.
 ---
 
 ## Out of Scope (MVP)
+
 - Image upload
 - Messenger field
 - Scroll to first error on submit

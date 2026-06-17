@@ -26,12 +26,14 @@ The RLS policy for admin access is in `supabase/admin-rls.sql`.
 ## Pages
 
 ### Queue (`/admin`)
+
 Shows all pending submissions (`approved = false`), newest first.
 
 - **Approve** — sets `approved = true`, removes the item from the queue view
 - **Delete** — permanently deletes the record after confirmation
 
 ### Services (`/admin/services`)
+
 Shows all services (approved and pending) in a table with search and status filter.
 
 - Search by name, category, or email
@@ -39,6 +41,7 @@ Shows all services (approved and pending) in a table with search and status filt
 - Click any row to open the **Edit Panel**
 
 #### Edit Panel
+
 A slide-over panel on the right side with all editable fields:
 
 - Approved / Featured toggles
@@ -53,7 +56,7 @@ Save calls `supabase.update()`, Delete calls `supabase.delete()` with a confirma
 
 ## File Structure
 
-```
+```text
 src/
   lib/
     supabaseClient.js        # Browser-side Supabase client (anon key)
@@ -70,7 +73,7 @@ supabase/
 
 ## Environment Variables
 
-```
+```env
 VITE_SUPABASE_URL=...        # Public — used by browser-side client
 VITE_SUPABASE_ANON_KEY=...   # Public (publishable) — safe to expose; RLS enforces security
 ```

@@ -7,7 +7,7 @@ Areas to consider that may not be fully addressed in the main MVP document.
 ## Security Concerns
 
 | Issue | Risk | Status |
-|-------|------|--------|
+| --- | --- | --- |
 | Database credentials | Exposing service key in browser gives full DB access | ✅ **RESOLVED** — Service key server-side only; anon key + RLS in browser |
 | Form spam | Bot submissions filling the database | ✅ **RESOLVED** — Honeypot field + all submissions require manual admin approval |
 | XSS vulnerabilities | User-submitted content could contain malicious scripts | ✅ **RESOLVED** — React default escaping (no `dangerouslySetInnerHTML`) |
@@ -24,7 +24,7 @@ Areas to consider that may not be fully addressed in the main MVP document.
 ### Error & Empty States
 
 | State | When | Status |
-|-------|------|--------|
+| --- | --- | --- |
 | Empty search results | Search returns nothing | ✅ Done — "No services found. Try a different search term." |
 | API error | Supabase/API is down | ✅ Done — Friendly error message + retry button |
 | 404 page | Invalid route | ✅ Done — Branded 404 with "Back to home" button |
@@ -42,7 +42,7 @@ Areas to consider that may not be fully addressed in the main MVP document.
 Custom React form at `/add-service`. All UX handled in-app.
 
 | Consideration | Status |
-|---------------|--------|
+| --- | --- |
 | Images | ✅ Cloudinary direct upload (up to 5 photos, 5MB each) |
 | Description | ✅ Max 600 chars, validated client + server side |
 | Phone | ✅ Validated format |
@@ -71,6 +71,7 @@ Consider adding LocalBusiness or Service schema for better Google results. (Post
 ### URL Structure
 
 Current routes:
+
 - `/` — Homepage
 - `/add-service` — Submit a listing
 - `/privacy` — Privacy Policy
@@ -78,6 +79,7 @@ Current routes:
 - `/admin` — Admin dashboard (authenticated)
 
 Post-MVP (optional):
+
 - `/services/cleaning` — Category-specific page
 - `/services/:id` — Individual listing page
 
@@ -133,7 +135,7 @@ How can a provider update their listing?
 ### Pagination Strategy
 
 | Approach | Pros | Cons |
-|----------|------|------|
+| --- | --- | --- |
 | Load all | Simple, instant filtering | Slow with 500+ listings |
 | Pagination | Predictable, good for SEO | Harder to browse |
 | Infinite scroll | Good UX for browsing | Harder to implement, back button issues |
@@ -153,7 +155,7 @@ How can a provider update their listing?
 ## Accessibility (a11y)
 
 | Area | Requirement |
-|------|-------------|
+| --- | --- |
 | Color contrast | Ensure text meets WCAG AA (4.5:1 ratio) |
 | Keyboard navigation | All interactive elements focusable and operable |
 | Focus states | Visible focus indicators on buttons, links, inputs |
@@ -213,7 +215,7 @@ How can a provider update their listing?
 ## Questions Resolved
 
 | Question | Decision |
-|----------|----------|
+| --- | --- |
 | Domain name | `spilno.us` ✅ |
 | Contact email | `info@spilno.us` ✅ |
 | Database | Supabase (migrated from Airtable) ✅ |

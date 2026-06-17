@@ -97,7 +97,7 @@ import { Analytics } from "./components/Analytics";
 GA4 automatically tracks:
 
 | Event | What it is |
-|-------|------------|
+| --- | --- |
 | `page_view` | Every route change (after Step 3) |
 | `session_start` | New visitor session |
 | `first_visit` | First time a user visits |
@@ -125,6 +125,7 @@ window.gtag("event", "form_submit", {
 ```
 
 Useful events to consider adding:
+
 - Search query typed in the hero bar
 - Category selected from dropdown
 - "Add service" form submitted successfully
@@ -145,7 +146,7 @@ If you add consent later, use `gtag('consent', 'update', {...})` to enable track
 ## Viewing Reports
 
 | Report | Where to find it |
-|--------|-----------------|
+| --- | --- |
 | Active users right now | Reports → Realtime |
 | Page views over time | Reports → Engagement → Pages and screens |
 | Search terms | Create a custom event for searches |
