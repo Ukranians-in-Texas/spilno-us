@@ -1,140 +1,163 @@
-# Ukrainians in Texas
+# Spilno.us — Ukrainians in Texas
 
-A service directory platform connecting Ukrainian professionals in Texas with people seeking their services.
+A bilingual service directory connecting Ukrainian professionals in Texas with people seeking their services. Live at **[spilno.us](https://www.spilno.us/)**.
 
 ## Overview
 
-This platform helps users browse, search, and filter Ukrainian service providers across Texas. Providers can submit their listings via a public Google Form, which are then reviewed and approved by admins before appearing on the site.
+The platform lets visitors browse, search, and filter Ukrainian service providers across Texas. Providers submit listings through a public form; each submission is reviewed and approved by an admin — via a Telegram bot or the web admin dashboard — before it appears on the site.
 
-**Key Features:**
-- 🔍 Browse and search Ukrainian professionals
-- 🏷️ Filter by 22 service categories
-- 🌐 Bilingual UI (English/Ukrainian)
+**Key features:**
+
+- 🔍 Browse, search, and filter providers
+- 🏷️ 21 service categories (105 subcategories)
+- 🌐 Bilingual UI (English / Ukrainian)
+- 🌓 Light / dark theme
 - 📱 Mobile-responsive design
-- 🔒 Secure, spam-protected submissions
+- 🔒 Spam-protected submissions (honeypot, validation, rate limiting)
 
 ## Tech Stack
 
 ### Frontend
-- **React** with Vite
-- **Tailwind CSS** for styling
-- **Vercel** for hosting
+
+- **React 19** + **Vite 7**
+- **Tailwind CSS v4** for styling
+- **React Router 7** for client-side routing
 
 ### Backend
-- **Vercel Serverless Functions** (API proxy)
-- **Airtable** (database)
-- **Google Forms** (service submissions)
-- **Google Drive** (image storage)
+
+- **Vercel Serverless Functions** (`/api`) — read proxy, submission handler, image delete, Telegram webhook, keep-alive cron
+- **Supabase** (Postgres) — single `services` table, protected by Row Level Security
+- **Cloudinary** — image hosting (unsigned client upload, signed server delete)
+- **Telegram Bot API** — submission notifications with inline Approve / Delete buttons
 
 ### Architecture
-- Single monorepo (frontend + API)
-- Serverless API proxy protects Airtable credentials
-- Google Forms handles spam protection
+
+- Single repo (frontend + serverless API)
+- Public reads go through `/api/services` (server-side service key, cached); the public app never queries Supabase directly
+- The admin dashboard talks to Supabase directly from the browser (anon key + RLS)
+- See **[docs/technical-guide.md](docs/technical-guide.md)** for the full architecture.
 
 ## Project Structure
 
 ```
-ukrainians-in-texas/
-├── api/              # Vercel serverless functions (server-side)
-├── src/              # React frontend (client-side)
+spilno-us/
+├── api/              # Vercel serverless functions + _lib helpers
+├── src/              # React frontend (components, pages, hooks, context, i18n)
+├── supabase/         # schema.sql + admin-rls.sql
 ├── docs/             # Documentation
-├── public/           # Static assets
+├── vite.config.js    # Vite config + local /api dev middleware
+├── vercel.json       # Security headers (CSP) + SPA rewrite
 └── package.json
 ```
 
 ## Documentation
 
-Comprehensive planning and technical documentation:
+- **[Technical Guide](docs/technical-guide.md)** — current architecture, data model, subsystems, and operations (start here)
+- **[MVP Specification](docs/architecture/mvp-document.md)** — original technical spec and design system
+- **[Technology Decisions](docs/architecture/decisions.md)** — rationale behind stack choices
+- **[Security Concerns](docs/architecture/security-concerns.md)** — security deep dive
+- **[MVP Gaps](docs/architecture/mvp-gaps.md)** — edge cases, accessibility, SEO, performance
 
-- **[MVP Specification](docs/MVP_DOCUMENT.md)** - Complete technical spec, design system, and component architecture
-- **[Technology Decisions](docs/DECISIONS.md)** - Why we chose Airtable, Vercel, Google Forms, etc.
-- **[Security Concerns](docs/SECURITY_CONCERNS.md)** - Deep dive into security implementation
-- **[MVP Gaps](docs/MVP_GAPS.md)** - Edge cases, accessibility, SEO, and performance considerations
+> Note: some files under `docs/architecture/` and `docs/plans/` predate the current stack (they reference an earlier Airtable / Google Forms design). The Technical Guide and [CLAUDE.md](CLAUDE.md) are the accurate, up-to-date sources.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
-- Airtable account
-- Google Forms account
-- Vercel account (for deployment)
+- Node.js 20+
+- npm
+- Accounts for Supabase, Cloudinary, and (optionally) a Telegram bot
 
 ### Installation
 
-_Setup instructions will be added once implementation begins._
-
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ukrainians-in-texas.git
-cd ukrainians-in-texas
+git clone <repository-url>
+cd spilno-us
 
 # Install dependencies
 npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your Airtable credentials
+# Fill in the values (see Environment Variables below)
 
-# Run development server
+# Run the dev server (Vite serves /api locally via middleware)
 npm run dev
 ```
 
 ### Environment Variables
 
-**Client-side (public):**
+**Client-side** (prefixed `VITE_`, exposed to the browser):
+
 ```env
-VITE_GOOGLE_FORM_URL=https://forms.gle/your_form_id
+VITE_CONTACT_EMAIL=
+VITE_CLOUDINARY_CLOUD_NAME=
+VITE_CLOUDINARY_UPLOAD_PRESET=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 ```
 
-**Server-side (secret):**
+**Server-side** (Vercel functions only — never exposed to the client):
+
 ```env
-AIRTABLE_API_KEY=your_api_key
-AIRTABLE_BASE_ID=your_base_id
-AIRTABLE_TABLE_NAME=Services
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+TELEGRAM_WEBHOOK_SECRET=
 ```
+
+See [.env.example](.env.example) for the full list.
 
 ## Development
 
 ```bash
-npm run dev       # start local dev server
-npm run build     # production build
-npm run lint      # lint
-npm test          # run all tests once
-npm run test:watch  # watch mode
+npm run dev         # start local dev server (+ local /api middleware)
+npm run build       # production build
+npm run preview     # serve the production build
+npm run lint        # ESLint
+npm test            # run all tests once
+npm run test:watch  # tests in watch mode
 ```
 
 ## Testing
 
-Unit tests use [Vitest](https://vitest.dev/) (no extra config needed — it works natively with Vite).
+Unit tests use [Vitest](https://vitest.dev/) (works natively with Vite, no extra config). External services (Supabase, Telegram, Cloudinary) are mocked — no real network or DB calls. Test files live next to the source they cover:
 
-Test files live next to the source they cover:
-
-- `src/utils/validation.test.js` — phone/URL formatting utilities
-- `src/utils/imageUrl.test.js` — Cloudinary and Google Drive URL parsing
-- `api/submit-service.test.js` — submission handler (validation, rate limiting, honeypot)
+| File | Covers |
+| --- | --- |
+| `src/utils/validation.test.js` | `formatPhone`, `isValidURL`, `getSafeHref`, `getDomain` |
+| `src/utils/imageUrl.test.js` | `getCloudinaryPublicId`, `parseImageUrls` |
+| `api/submit-service.test.js` | Validation, honeypot, rate limiting, image filtering, success/error paths |
+| `api/telegram-webhook.test.js` | Secret check, approve/delete callbacks, idempotency |
+| `api/_lib/telegram.test.js` | Message building and escaping |
+| `api/_lib/cloudinary.test.js` | Public-id extraction, single/CSV delete |
 
 ## Deployment
 
-**Platform:** Vercel
+**Platform:** Vercel (SPA + serverless `/api` functions).
 
-**Process:**
-1. Connect GitHub repository to Vercel
-2. Add environment variables in Vercel dashboard
-3. Deploy automatically on push to `main`
+1. Connect the GitHub repository to Vercel.
+2. Add all environment variables in the Vercel dashboard.
+3. Push to `main` — Vercel auto-deploys.
+
+SPA routing and security headers (CSP, `X-Frame-Options`, etc.) are configured in [vercel.json](vercel.json). A daily `keep-alive` cron pings the database to keep the Supabase project warm.
 
 ## Contributing
 
-This is a community project. Contributions are welcome!
+This is a community project — contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE) (or specify your license)
+[MIT](LICENSE)
 
 ## Contact
 
-For questions or support, contact: [info@spilno.us](mailto:info@spilno.us)
+Questions or support: [info@spilno.us](mailto:info@spilno.us)
 
 ---
 

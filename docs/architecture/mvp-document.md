@@ -21,7 +21,7 @@ A service directory platform connecting Ukrainian professionals in Texas with pe
 ### Colors
 
 | Name | HEX | Usage |
-|------|-----|-------|
+| --- | --- | --- |
 | Dark Blue | `#00205B` | Primary brand, headers, logo |
 | Blue | `#0057B7` | Links, accents |
 | Red | `#E52459` | CTA buttons, highlights |
@@ -93,7 +93,7 @@ A service directory platform connecting Ukrainian professionals in Texas with pe
 
 **Categories & Subcategories:**
 
-```
+```text
 💄 Beauty & Wellness (Non-Medical)
    - Manicure / Nail Services
    - Haircuts / Hair Coloring
@@ -259,7 +259,7 @@ When opened:
 **Google Form Fields:**
 
 | Field | Type | Required |
-|-------|------|----------|
+| --- | --- | --- |
 | Business/Service Name | Short answer | Yes |
 | Description | Paragraph (max 1000 chars) | Yes |
 | Category | Dropdown (subcategories only) | Yes |
@@ -294,7 +294,7 @@ When opened:
 
 Google Drive share URLs don't work directly in `<img>` tags. Convert them:
 
-```
+```text
 Original:  https://drive.google.com/file/d/FILE_ID/view?usp=sharing
 Convert to: https://drive.google.com/uc?export=view&id=FILE_ID
 ```
@@ -371,10 +371,10 @@ For each new submission:
 
 ### Airtable Schema
 
-**Table: Services**
+#### Table: Services
 
 | Field | Type | Notes |
-| ------- | ------ |------- |
+| --- | --- | --- |
 | title | Single line text | Business name |
 | description | Long text | Full description |
 | category | Single select | Subcategory only (e.g., "Cleaning") |
@@ -393,7 +393,7 @@ For each new submission:
 **Categories Table (Optional — for dynamic categories):**
 
 | Field | Type |
-| ------- | ------ |
+| --- | --- |
 | name | Single line text |
 | icon | Single line text (emoji) |
 | parentCategory | Single line text |
@@ -581,7 +581,7 @@ Thumbs.db
 
 ### High-Level Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    UKRAINIANS IN TEXAS                          │
 │                    (React App on Vercel)                        │
@@ -623,7 +623,7 @@ Thumbs.db
 
 ### Flow 1: Visitor Browsing Services
 
-```
+```text
 1. Visitor → ukrainians-in-texas.com
    │
 2. React app loads in browser
@@ -655,7 +655,7 @@ Thumbs.db
 
 ### Flow 2: Service Provider Submission
 
-```
+```text
 1. Provider clicks "Add Service" button
    │
 2. Opens Google Form in new tab (forms.google.com)
@@ -680,7 +680,7 @@ Thumbs.db
 
 ### Flow 3: Admin Review & Approval
 
-```
+```text
 1. Admin receives notification:
    ├─ Google Sheets email (optional)
    ├─ Airtable automation (optional)
@@ -708,7 +708,7 @@ Thumbs.db
 
 ### Technical Data Flow (with Secrets Protection)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  BROWSER (Client-Side) — NO SECRETS HERE                │
 │  ┌────────────────────────────────────────────────┐    │
@@ -872,7 +872,7 @@ When a user selects a category that has no approved listings:
 ## Responsive Breakpoints
 
 | Breakpoint | Width | Layout |
-|------------|-------|--------|
+| --- | --- | --- |
 | Mobile | < 768px | Single column, hamburger menu |
 | Tablet | 768px - 1024px | 2 columns |
 | Desktop | > 1024px | 3 columns, full mega menu |

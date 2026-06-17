@@ -50,6 +50,7 @@ A separate repo doubles operational surface area for no security benefit at this
 - **DIY JWT** with `jose` is viable for v1 but gets replaced for free when you migrate to Supabase.
 
 **Implementation:**
+
 1. Create one Supabase Auth user (the admin)
 2. Vercel Edge Middleware validates Supabase session cookie on every `/admin/*` request
 3. Unauthenticated requests redirect to `/admin/login`
@@ -87,7 +88,7 @@ Only add serverless functions where needed (e.g., sending notification emails, c
 ### Implementation Phases
 
 | Phase | Task | Hours |
-|---|---|---|
+| --- | --- | --- |
 | 0 | Supabase migration (export Airtable CSV → create schema → import → rewrite 2 API functions) | 4–5 |
 | 1 | Auth: Supabase Auth user + Edge Middleware + `/admin/login` page | 3 |
 | 2 | Moderation queue: pending list, approve/reject | 4–5 |
@@ -96,6 +97,7 @@ Only add serverless functions where needed (e.g., sending notification emails, c
 | **Total** | | **~24 hours** |
 
 ### What to defer
+
 - Notifications → Supabase Database Webhooks → Resend email (1h task, do post-v1)
 - Bulk actions
 - Analytics charts
@@ -108,9 +110,11 @@ Only add serverless functions where needed (e.g., sending notification emails, c
 **Recommendation: Migrate to Supabase Postgres before building the admin. Do it first, not last.**
 
 ### Why not Airtable
+
 Airtable's API doesn't support efficient multi-condition server-side filtering. You fetch all records and filter client-side — meaning paginated admin views are painful. Rate limit: 5 req/s (irrelevant for this use case but a ceiling).
 
 ### Why not Firebase Firestore
+
 Firestore's NoSQL document model is a poor fit for a structured 17-field directory. You lose SQL aggregations (`GROUP BY category`, `COUNT(*) WHERE approved = false`), full-text search, and multi-condition queries without composite indexes for every combination.
 
 ### Why Supabase
@@ -118,7 +122,7 @@ Firestore's NoSQL document model is a poor fit for a structured 17-field directo
 One provider gives you everything:
 
 | Feature | Supabase |
-|---|---|
+| --- | --- |
 | Database | Postgres — full SQL, joins, aggregations, full-text search |
 | Auth | Built-in email/password, OAuth, sessions, JWT |
 | Row Level Security | Public API reads only `approved = true`; admin service-role bypasses RLS |
@@ -127,9 +131,11 @@ One provider gives you everything:
 | Vercel integration | First-class — Vercel Marketplace, auto env var sync |
 
 ### Free tier pausing
+
 The free tier pauses after 7 days of inactivity. Once real users hit the public site, this won't be an issue. **Upgrade to Pro ($25/mo) before going to production** — no pausing, daily backups, priority support.
 
 ### Migration effort: ~4 hours
+
 1. Export Airtable as CSV (one click)
 2. Create Supabase table with matching columns (30 min)
 3. Import CSV via Supabase dashboard (5 min)
@@ -140,7 +146,7 @@ The free tier pauses after 7 days of inactivity. Once real users hit the public 
 ## Final Recommended Stack
 
 | Layer | Choice |
-|---|---|
+| --- | --- |
 | Frontend | React 19 + Vite + Tailwind CSS v4 (no change) |
 | Admin routing | Same repo, `/admin/*` routes, `React.lazy()` |
 | Auth | Supabase Auth (email + password for admin user) |

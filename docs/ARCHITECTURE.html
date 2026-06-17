@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spilno.us — Architecture Map</title>
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --panel: #111a30;
+    --panel-2: #0d1526;
+    --border: #24314f;
+    --text: #e6ecf7;
+    --muted: #8a98b8;
+    --rest-edge: #34425f;
+    --accent: #7dd3fc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    flex: 0 0 auto;
+  }
+  header h1 { margin: 0 0 2px; font-size: 17px; }
+  header p { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 1100px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  main { flex: 1 1 auto; display: flex; min-height: 0; }
+
+  /* Side rail */
+  aside {
+    width: 320px;
+    flex: 0 0 320px;
+    border-right: 1px solid var(--border);
+    background: var(--panel-2);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .rail-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .rail-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
+  #clear {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+  }
+  #clear:hover { border-color: var(--accent); color: var(--accent); }
+  #flows { list-style: none; margin: 0; padding: 8px; overflow-y: auto; }
+  #flows li {
+    padding: 10px 12px; border-radius: 9px; cursor: pointer; margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  #flows li:hover { background: var(--panel); }
+  #flows li.active { background: var(--panel); border-color: var(--accent); }
+  #flows li .fname { font-weight: 600; font-size: 13.5px; }
+  #flows li .fdesc { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+  .steps-wrap { border-top: 1px solid var(--border); overflow-y: auto; flex: 1 1 auto; }
+  .steps-wrap h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; padding: 12px 16px 6px; }
+  #steps { list-style: none; margin: 0; padding: 0 12px 16px; }
+  #steps li { display: flex; gap: 10px; padding: 8px 4px; border-bottom: 1px dashed var(--border); }
+  #steps li:last-child { border-bottom: none; }
+  .step-num {
+    flex: 0 0 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #03101f;
+    font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { min-width: 0; }
+  .step-route { font-size: 12px; color: var(--muted); }
+  .step-route b { color: var(--text); font-weight: 600; }
+  .step-label { font-size: 13px; margin-top: 1px; }
+  .step-detail { font-size: 11.5px; color: var(--muted); margin-top: 1px; word-break: break-word; }
+  .empty-hint { color: var(--muted); font-size: 12.5px; padding: 8px 16px; }
+
+  /* Board */
+  .board-scroll { flex: 1 1 auto; overflow: auto; position: relative; }
+  #board {
+    position: relative;
+    display: flex;
+    gap: 56px;
+    padding: 28px 36px 40px;
+    min-width: max-content;
+    min-height: 100%;
+  }
+  svg#wires { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 5; }
+  .column { display: flex; flex-direction: column; gap: 16px; width: 210px; flex: 0 0 210px; position: relative; z-index: 10; }
+  .col-head {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted);
+    display: flex; align-items: center; gap: 7px; padding-bottom: 2px; border-bottom: 1px solid var(--border);
+  }
+  .node {
+    background: var(--panel); border: 1.5px solid var(--border); border-radius: 11px;
+    padding: 10px 12px; transition: opacity .18s, border-color .18s, box-shadow .18s, transform .18s;
+    position: relative;
+  }
+  .node .nlabel { font-weight: 650; font-size: 13px; }
+  .node .npath { font-size: 11px; color: var(--accent); opacity: .85; margin-top: 3px; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .node .ndetail { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  body.flow-active .node { opacity: .28; }
+  body.flow-active .node.in-flow { opacity: 1; box-shadow: 0 0 0 1px rgba(125,211,252,.25), 0 6px 22px rgba(0,0,0,.4); transform: translateY(-1px); }
+  .node.in-flow { border-color: currentColor; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <p id="desc"></p>
+  <div class="legend" id="legend"></div>
+</header>
+<main>
+  <aside>
+    <div class="rail-head">
+      <h2>Flows</h2>
+      <button id="clear">Clear selection</button>
+    </div>
+    <ul id="flows"></ul>
+    <div class="steps-wrap">
+      <h3>Steps</h3>
+      <ul id="steps"></ul>
+      <p class="empty-hint" id="emptyHint">Select a flow to trace its path.</p>
+    </div>
+  </aside>
+  <div class="board-scroll" id="boardScroll">
+    <div id="board">
+      <svg id="wires"></svg>
+    </div>
+  </div>
+</main>
+
+<script>
+const DATA = {
+  "name": "Spilno.us",
+  "description": "Ukrainian professional services directory for the Texas community — a React SPA on Vercel that reads approved listings through serverless functions, accepts public submissions reviewed via a Telegram bot or an admin dashboard, and stores data in Supabase Postgres.",
+  "categories": [
+    { "id": "actor",    "label": "Actor",       "color": "#e879f9" },
+    { "id": "client",   "label": "Client",      "color": "#38bdf8" },
+    { "id": "server",   "label": "Server",      "color": "#4ade80" },
+    { "id": "data",     "label": "Data store",  "color": "#fbbf24" },
+    { "id": "job",      "label": "Background",  "color": "#fb923c" },
+    { "id": "external", "label": "External",    "color": "#f87171" }
+  ],
+  "nodes": [
+    { "id": "public-user", "label": "Public user", "category": "actor", "detail": "Browses the directory and submits listings" },
+    { "id": "admin", "label": "Admin / reviewer", "category": "actor", "detail": "Approves & deletes via dashboard or Telegram taps" },
+
+    { "id": "home-page", "label": "HomePage", "category": "client", "path": "src/pages/HomePage.jsx", "detail": "Browse, search & category filter" },
+    { "id": "add-form", "label": "AddServiceForm", "category": "client", "path": "src/components/AddServiceForm/", "detail": "Submit a listing + upload images" },
+    { "id": "admin-dashboard", "label": "Admin dashboard", "category": "client", "path": "src/pages/admin/", "detail": "Login, review queue, manage services" },
+
+    { "id": "api-services", "label": "GET /api/services", "category": "server", "path": "api/services.js", "detail": "Returns approved services (cached 5m / SWR 10m)" },
+    { "id": "api-submit", "label": "POST /api/submit-service", "category": "server", "path": "api/submit-service.js", "detail": "Validates, rate-limits, inserts, notifies Telegram" },
+    { "id": "api-telegram-webhook", "label": "POST /api/telegram-webhook", "category": "server", "path": "api/telegram-webhook.js", "detail": "Approve/Delete button callbacks (secret-verified)" },
+    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one image from Cloudinary by public id" },
+
+    { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * * — pings DB to keep it warm" },
+
+    { "id": "services-table", "label": "services table", "category": "data", "path": "supabase/schema.sql", "detail": "Supabase Postgres, RLS: public reads approved=true" },
+
+    { "id": "cloudinary", "label": "Cloudinary", "category": "external", "detail": "Image hosting — unsigned upload + signed admin delete" },
+    { "id": "telegram", "label": "Telegram Bot API", "category": "external", "detail": "Submission notifications + inline Approve/Delete buttons" },
+    { "id": "supabase-auth", "label": "Supabase Auth", "category": "external", "detail": "Admin email/password sign-in (anon key + RLS)" }
+  ],
+  "edges": [
+    { "from": "public-user", "to": "home-page" },
+    { "from": "home-page", "to": "api-services" },
+    { "from": "api-services", "to": "services-table" },
+    { "from": "services-table", "to": "api-services" },
+    { "from": "api-services", "to": "home-page" },
+
+    { "from": "public-user", "to": "add-form" },
+    { "from": "add-form", "to": "cloudinary" },
+    { "from": "cloudinary", "to": "add-form" },
+    { "from": "add-form", "to": "api-submit" },
+    { "from": "api-submit", "to": "services-table" },
+    { "from": "api-submit", "to": "telegram" },
+    { "from": "api-submit", "to": "add-form" },
+
+    { "from": "admin", "to": "telegram" },
+    { "from": "telegram", "to": "api-telegram-webhook" },
+    { "from": "api-telegram-webhook", "to": "services-table" },
+    { "from": "api-telegram-webhook", "to": "cloudinary" },
+    { "from": "api-telegram-webhook", "to": "telegram" },
+
+    { "from": "admin", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "supabase-auth" },
+    { "from": "supabase-auth", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "services-table" },
+    { "from": "services-table", "to": "admin-dashboard" },
+    { "from": "admin-dashboard", "to": "api-delete-image" },
+    { "from": "api-delete-image", "to": "cloudinary" },
+
+    { "from": "keep-alive", "to": "services-table" }
+  ],
+  "flows": [
+    {
+      "id": "submit-listing",
+      "name": "Submit a listing",
+      "description": "Public user adds a business: images upload straight to Cloudinary, then the form posts to the API which validates, rate-limits, inserts an unapproved row, and pings Telegram.",
+      "steps": [
+        { "from": "public-user", "to": "add-form", "label": "Fills out the form", "detail": "src/components/AddServiceForm/AddServiceForm.jsx" },
+        { "from": "add-form", "to": "cloudinary", "label": "Unsigned image upload", "detail": "POST api.cloudinary.com/v1_1/<cloud>/image/upload (upload_preset)" },
+        { "from": "cloudinary", "to": "add-form", "label": "Returns secure_url", "detail": "https://res.cloudinary.com/... stored in form state" },
+        { "from": "add-form", "to": "api-submit", "label": "POST submission", "detail": "fetch('/api/submit-service') with fields + imageUrls" },
+        { "from": "api-submit", "to": "services-table", "label": "Rate-limit check + insert", "detail": "max 3/email/24h, then insert { approved:false }" },
+        { "from": "api-submit", "to": "telegram", "label": "Notify reviewers", "detail": "sendMessage with inline Approve/Delete buttons (api/_lib/telegram.js)" },
+        { "from": "api-submit", "to": "add-form", "label": "{ success: true }", "detail": "200 — form shows confirmation" }
+      ]
+    },
+    {
+      "id": "browse-services",
+      "name": "Browse the directory",
+      "description": "Visitor loads the homepage; the SPA reads approved listings through the serverless API, never touching Supabase directly.",
+      "steps": [
+        { "from": "public-user", "to": "home-page", "label": "Opens the directory", "detail": "search & category filter live in HomePage state" },
+        { "from": "home-page", "to": "api-services", "label": "GET services", "detail": "fetchServices() → /api/services?category&limit&lang (src/services/api.js)" },
+        { "from": "api-services", "to": "services-table", "label": "Select approved rows", "detail": "fetchApprovedServices() (api/_lib/supabase.js)" },
+        { "from": "services-table", "to": "api-services", "label": "Approved rows", "detail": "RLS allows only approved=true" },
+        { "from": "api-services", "to": "home-page", "label": "JSON response", "detail": "Cache-Control s-maxage=300, stale-while-revalidate=600" }
+      ]
+    },
+    {
+      "id": "telegram-approve",
+      "name": "Approve from Telegram",
+      "description": "Reviewer taps Approve in the Telegram message; the webhook verifies the secret, flips approved=true, and edits the message.",
+      "steps": [
+        { "from": "admin", "to": "telegram", "label": "Taps ✅ Approve", "detail": "inline button callback_data approve_<uuid>" },
+        { "from": "telegram", "to": "api-telegram-webhook", "label": "callback_query", "detail": "x-telegram-bot-api-secret-token header verified" },
+        { "from": "api-telegram-webhook", "to": "services-table", "label": "Set approved=true", "detail": "update().eq('id', uuid) — idempotent if already approved" },
+        { "from": "api-telegram-webhook", "to": "telegram", "label": "Edit message ✅ Approved", "detail": "editMessageText, clears inline keyboard" }
+      ]
+    },
+    {
+      "id": "telegram-delete",
+      "name": "Delete from Telegram",
+      "description": "Reviewer taps Delete; the webhook removes the listing's Cloudinary images, then the row, then edits the message.",
+      "steps": [
+        { "from": "admin", "to": "telegram", "label": "Taps ❌ Delete", "detail": "inline button callback_data delete_<uuid>" },
+        { "from": "telegram", "to": "api-telegram-webhook", "label": "callback_query", "detail": "secret-verified; fetches row first" },
+        { "from": "api-telegram-webhook", "to": "cloudinary", "label": "Delete images", "detail": "deleteCloudinaryImages(row.images) (api/_lib/cloudinary.js)" },
+        { "from": "api-telegram-webhook", "to": "services-table", "label": "Delete row", "detail": "delete().eq('id', uuid)" },
+        { "from": "api-telegram-webhook", "to": "telegram", "label": "Edit message 🗑 Deleted", "detail": "editMessageText, clears inline keyboard" }
+      ]
+    },
+    {
+      "id": "admin-login",
+      "name": "Admin signs in",
+      "description": "Admin authenticates against Supabase Auth from the browser; the resulting session unlocks RLS-gated full access.",
+      "steps": [
+        { "from": "admin", "to": "admin-dashboard", "label": "Enters credentials", "detail": "src/pages/admin/AdminLoginPage.jsx" },
+        { "from": "admin-dashboard", "to": "supabase-auth", "label": "signInWithPassword", "detail": "supabase.auth (anon key, src/lib/supabaseClient.js)" },
+        { "from": "supabase-auth", "to": "admin-dashboard", "label": "Session token", "detail": "authenticated session enables admin RLS policy" }
+      ]
+    },
+    {
+      "id": "admin-queue-manage",
+      "name": "Manage queue (dashboard)",
+      "description": "Authenticated dashboard reads pending rows directly via supabase-js; deleting calls the image API then removes the row.",
+      "steps": [
+        { "from": "admin", "to": "admin-dashboard", "label": "Opens review queue", "detail": "src/pages/admin/AdminQueuePage.jsx" },
+        { "from": "admin-dashboard", "to": "services-table", "label": "Read / update / delete", "detail": "supabase-js direct, anon key + admin RLS (approved=false rows)" },
+        { "from": "services-table", "to": "admin-dashboard", "label": "Pending rows", "detail": "order by submitted_at desc" },
+        { "from": "admin-dashboard", "to": "api-delete-image", "label": "Delete each image", "detail": "POST /api/delete-image { publicId } before row delete" },
+        { "from": "api-delete-image", "to": "cloudinary", "label": "Destroy asset", "detail": "deleteCloudinaryImageById (signed API)" }
+      ]
+    },
+    {
+      "id": "keep-alive-cron",
+      "name": "Keep-alive cron",
+      "description": "A daily Vercel Cron invocation runs a trivial query so Supabase doesn't idle out.",
+      "steps": [
+        { "from": "keep-alive", "to": "services-table", "label": "SELECT id LIMIT 1", "detail": "Vercel Cron schedule 0 0 * * * (api/keep-alive.js)" }
+      ]
+    }
+  ],
+  "meta": {
+    "generatedAt": "2026-06-16",
+    "sourceCommit": "3133adf",
+    "notes": "Server _lib helpers (api/_lib/supabase.js, telegram.js, cloudinary.js) are folded into the functions that call them. 'services-table' represents the Supabase Postgres `services` table; 'supabase-auth' is the same Supabase project's Auth service, split out so the admin-login flow reads clearly. Public reads go only through /api/services; the admin dashboard talks to Supabase directly with the anon key under RLS. The local Vite dev middleware reimplements /api/submit-service with looser validation — this map reflects the authoritative deployed api/*.js handlers."
+  }
+};
+
+// ---------- helpers ----------
+const DEFAULT_FLOW = "submit-listing";
+const $ = (s, r = document) => r.querySelector(s);
+const SVGNS = "http://www.w3.org/2000/svg";
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+const catById = Object.fromEntries(DATA.categories.map(c => [c.id, c]));
+const nodeById = Object.fromEntries(DATA.nodes.map(n => [n.id, n]));
+const colorOf = id => (catById[nodeById[id]?.category] || {}).color || "#9aa7c0";
+
+// ---------- header ----------
+$("#title").textContent = DATA.name + " — Architecture Map";
+$("#desc").textContent = DATA.description;
+$("#legend").innerHTML = DATA.categories.map(c =>
+  `<span><i class="swatch" style="background:${esc(c.color)}"></i>${esc(c.label)}</span>`
+).join("");
+
+// ---------- board (columns by category order) ----------
+const board = $("#board");
+const svg = $("#wires");
+const nodeEls = {};
+for (const cat of DATA.categories) {
+  const nodes = DATA.nodes.filter(n => n.category === cat.id);
+  if (!nodes.length) continue;
+  const col = document.createElement("div");
+  col.className = "column";
+  col.innerHTML = `<div class="col-head"><i class="swatch" style="background:${esc(cat.color)}"></i>${esc(cat.label)}</div>`;
+  for (const n of nodes) {
+    const el = document.createElement("div");
+    el.className = "node";
+    el.style.color = cat.color;
+    el.dataset.id = n.id;
+    el.innerHTML =
+      `<div class="nlabel" style="color:var(--text)">${esc(n.label)}</div>` +
+      (n.path ? `<div class="npath">${esc(n.path)}</div>` : "") +
+      (n.detail ? `<div class="ndetail">${esc(n.detail)}</div>` : "");
+    col.appendChild(el);
+    nodeEls[n.id] = el;
+  }
+  board.appendChild(col);
+}
+
+// ---------- arrowhead marker (per draw, colored) ----------
+let activeFlow = null;
+
+function geom(id) {
+  const el = nodeEls[id];
+  const br = board.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return {
+    x: r.left - br.left, y: r.top - br.top,
+    w: r.width, h: r.height,
+    cx: r.left - br.left + r.width / 2,
+    cy: r.top - br.top + r.height / 2,
+  };
+}
+
+// intersection of ray from box center toward (tx,ty) with the box border
+function border(b, tx, ty) {
+  const dx = tx - b.cx, dy = ty - b.cy;
+  if (dx === 0 && dy === 0) return { x: b.cx, y: b.cy };
+  const hw = b.w / 2, hh = b.h / 2;
+  const sx = dx === 0 ? Infinity : hw / Math.abs(dx);
+  const sy = dy === 0 ? Infinity : hh / Math.abs(dy);
+  const s = Math.min(sx, sy);
+  return { x: b.cx + dx * s, y: b.cy + dy * s };
+}
+
+function draw() {
+  const bw = board.scrollWidth, bh = board.scrollHeight;
+  svg.setAttribute("width", bw);
+  svg.setAttribute("height", bh);
+  svg.setAttribute("viewBox", `0 0 ${bw} ${bh}`);
+  svg.innerHTML = "";
+
+  const inFlow = new Set();
+  if (activeFlow) activeFlow.steps.forEach(s => { inFlow.add(s.from); inFlow.add(s.to); });
+
+  // --- resting edges (faint) ---
+  for (const e of DATA.edges) {
+    const a = geom(e.from), b = geom(e.to);
+    const p1 = border(a, b.cx, b.cy), p2 = border(b, a.cx, a.cy);
+    const line = document.createElementNS(SVGNS, "path");
+    line.setAttribute("d", `M${p1.x},${p1.y} L${p2.x},${p2.y}`);
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", "var(--rest-edge)");
+    line.setAttribute("stroke-width", "1.3");
+    line.setAttribute("opacity", activeFlow ? "0.18" : "0.6");
+    svg.appendChild(line);
+  }
+
+  if (!activeFlow) return;
+
+  // group steps by unordered pair so request/response & parallels fan out
+  const groups = {};
+  activeFlow.steps.forEach((s, i) => {
+    const key = [s.from, s.to].sort().join("");
+    (groups[key] ||= []).push(i);
+  });
+
+  activeFlow.steps.forEach((step, i) => {
+    const key = [step.from, step.to].sort().join("");
+    const grp = groups[key];
+    const pos = grp.indexOf(i);
+    const n = grp.length;
+    const spread = 26;
+    const off = (pos - (n - 1) / 2) * spread; // perpendicular bow
+
+    const a = geom(step.from), b = geom(step.to);
+    const p1 = border(a, b.cx, b.cy), p2 = border(b, a.cx, a.cy);
+
+    // midpoint + perpendicular for the control point
+    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    let nx = -(p2.y - p1.y), ny = (p2.x - p1.x);
+    const len = Math.hypot(nx, ny) || 1;
+    nx /= len; ny /= len;
+    const cxp = mx + nx * off, cyp = my + ny * off;
+
+    const color = colorOf(step.from);
+    const mid = `wire-arrow-${i}`;
+    const marker = document.createElementNS(SVGNS, "marker");
+    marker.setAttribute("id", mid);
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "8.5"); marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "7"); marker.setAttribute("markerHeight", "7");
+    marker.setAttribute("orient", "auto-start-reverse");
+    marker.innerHTML = `<path d="M0,0 L10,5 L0,10 z" fill="${color}"></path>`;
+    svg.appendChild(marker);
+
+    const path = document.createElementNS(SVGNS, "path");
+    path.setAttribute("d", `M${p1.x},${p1.y} Q${cxp},${cyp} ${p2.x},${p2.y}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", color);
+    path.setAttribute("stroke-width", "2.4");
+    path.setAttribute("opacity", "0.95");
+    path.setAttribute("marker-end", `url(#${mid})`);
+    svg.appendChild(path);
+
+    // badge at the quadratic midpoint (t=0.5)
+    const t = 0.5;
+    const bx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * cxp + t * t * p2.x;
+    const by = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * cyp + t * t * p2.y;
+    const g = document.createElementNS(SVGNS, "g");
+    const circle = document.createElementNS(SVGNS, "circle");
+    circle.setAttribute("cx", bx); circle.setAttribute("cy", by); circle.setAttribute("r", "10");
+    circle.setAttribute("fill", "#03101f"); circle.setAttribute("stroke", color); circle.setAttribute("stroke-width", "2");
+    const txt = document.createElementNS(SVGNS, "text");
+    txt.setAttribute("x", bx); txt.setAttribute("y", by + 0.5);
+    txt.setAttribute("text-anchor", "middle"); txt.setAttribute("dominant-baseline", "central");
+    txt.setAttribute("fill", color); txt.setAttribute("font-size", "12"); txt.setAttribute("font-weight", "700");
+    txt.textContent = String(i + 1);
+    g.appendChild(circle); g.appendChild(txt);
+    svg.appendChild(g);
+  });
+
+  // node highlight states
+  for (const id in nodeEls) nodeEls[id].classList.toggle("in-flow", inFlow.has(id));
+}
+
+// ---------- flow rail ----------
+const flowsUl = $("#flows");
+DATA.flows.forEach(f => {
+  const li = document.createElement("li");
+  li.dataset.id = f.id;
+  li.innerHTML = `<div class="fname">${esc(f.name)}</div><div class="fdesc">${esc(f.description)}</div>`;
+  li.addEventListener("click", () => selectFlow(f.id));
+  flowsUl.appendChild(li);
+});
+
+function renderSteps(flow) {
+  const ul = $("#steps");
+  const hint = $("#emptyHint");
+  if (!flow) {
+    ul.innerHTML = "";
+    hint.style.display = "block";
+    return;
+  }
+  hint.style.display = "none";
+  ul.innerHTML = flow.steps.map((s, i) => {
+    const fromL = nodeById[s.from]?.label || s.from;
+    const toL = nodeById[s.to]?.label || s.to;
+    return `<li>
+      <div class="step-num" style="background:${esc(colorOf(s.from))}">${i + 1}</div>
+      <div class="step-body">
+        <div class="step-route"><b>${esc(fromL)}</b> → <b>${esc(toL)}</b></div>
+        <div class="step-label">${esc(s.label || "")}</div>
+        ${s.detail ? `<div class="step-detail">${esc(s.detail)}</div>` : ""}
+      </div>
+    </li>`;
+  }).join("");
+}
+
+function selectFlow(id) {
+  activeFlow = DATA.flows.find(f => f.id === id) || null;
+  document.body.classList.toggle("flow-active", !!activeFlow);
+  [...flowsUl.children].forEach(li => li.classList.toggle("active", li.dataset.id === id));
+  renderSteps(activeFlow);
+  draw();
+}
+
+function clearSelection() {
+  activeFlow = null;
+  document.body.classList.remove("flow-active");
+  [...flowsUl.children].forEach(li => li.classList.remove("active"));
+  renderSteps(null);
+  draw();
+}
+$("#clear").addEventListener("click", clearSelection);
+
+// ---------- redraw triggers ----------
+let raf = null;
+function scheduleDraw() { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+window.addEventListener("resize", scheduleDraw);
+$("#boardScroll").addEventListener("scroll", scheduleDraw);
+window.addEventListener("scroll", scheduleDraw, true);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleDraw);
+
+// ---------- init ----------
+selectFlow(DEFAULT_FLOW);
+window.addEventListener("load", scheduleDraw);
+</script>
+</body>
+</html>
