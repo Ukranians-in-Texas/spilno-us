@@ -31,13 +31,18 @@ export function AdminQueuePage() {
     const item = items.find((i) => i.id === id);
     if (item?.images) {
       const urls = item.images.split(',').map((u) => u.trim()).filter((u) => u.startsWith('https://res.cloudinary.com/'));
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       await Promise.allSettled(
         urls.map((url) => {
           const publicId = getCloudinaryPublicId(url);
           if (!publicId) return Promise.resolve();
           return fetch('/api/delete-image', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
             body: JSON.stringify({ publicId }),
           });
         })
