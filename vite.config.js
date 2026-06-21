@@ -142,5 +142,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss(), localApiPlugin(env)],
+    test: {
+      exclude: ['tests/e2e/**', 'node_modules/**'],
+    },
   }
 })
