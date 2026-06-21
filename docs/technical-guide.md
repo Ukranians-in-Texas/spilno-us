@@ -23,7 +23,7 @@ A deep, self-contained reference for **Spilno.us** — how the system fits toget
 **Major moving parts:**
 
 - **React SPA** (public site + admin dashboard) — single bundle, client-side routed.
-- **Vercel serverless functions** (`/api/*`) — read proxy, submission handler, image delete, Telegram webhook, keep-alive cron.
+- **Vercel serverless functions** (`/api/*`) — read proxy, submission handler, image delete, Telegram webhook, keep-alive cron, orphan image cleanup cron.
 - **Supabase Postgres** — single `services` table, RLS-protected.
 - **Cloudinary** — image hosting (unsigned client upload, signed server delete).
 - **Telegram bot** — submission notifications with inline Approve/Delete buttons.
@@ -65,7 +65,7 @@ flowchart TD
     CronWeekly[Vercel cron weekly] -->|GET| Cleanup[api/cleanup-images.js]
     Cleanup -->|list resources| Cloudinary
     Cleanup -->|select images| DB
-    Cleanup -->|alert| Telegram
+    Cleanup -->|alert| Bot
 ```
 
 ### Representative end-to-end flow — a new submission
@@ -455,7 +455,7 @@ For stronger or IP-based limiting (Vercel Firewall, or Upstash Redis + `@upstash
 
 Items the code could not confirm, or known gaps worth flagging:
 
-1. **Historical planning docs are stale.** README and CLAUDE.md are current, but several files under `docs/architecture/` and `docs/plans/` predate the current stack (they still describe the earlier Airtable / Google Forms / Google Drive design). They are kept as historical snapshots; this guide and [CLAUDE.md](../CLAUDE.md) are the accurate sources.
+1. **Historical planning docs are marked.** Several files under `docs/architecture/`, `docs/data/`, `docs/plans/`, and `docs/implementation/` predate the current stack (Airtable / Google Forms / Google Drive era). Each has a `> **Historical**` banner at the top pointing to the current source of truth. This guide and [CLAUDE.md](../CLAUDE.md) are the accurate sources.
 2. ~~**`/api/delete-image` is unauthenticated.**~~ Fixed — now requires a valid Supabase Bearer token (admin session).
 3. **`messenger` column is half-wired.** Present in schema + admin `EditPanel`, but not collected by the public form or written by `submit-service.js`. Decide: admin-only field, or wire it end-to-end, or drop it.
 4. ~~**Orphaned Cloudinary images.**~~ Fixed — weekly cron (`api/cleanup-images.js`) deletes orphaned images with a 48h grace period and Telegram alerts.
