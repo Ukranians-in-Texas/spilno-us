@@ -22,6 +22,28 @@ npm run test:e2e -- --headed
 
 ---
 
+## Unit tests vs. component tests
+
+Both use Vitest, but they test different things in different environments:
+
+**Unit tests** test server-side JavaScript — the serverless functions in `api/` and utility functions in `src/utils/`. They run in **Node** (the default Vitest environment), have no DOM, no React, no browser APIs. They import the handler function directly, pass it a fake `req`/`res`, and assert on the response. External services (Supabase, Telegram, Cloudinary) are replaced with `vi.mock()` stubs. These tests answer: *does the server logic handle this input correctly?*
+
+**Component tests** test React components as a user would interact with them — rendering them in a simulated browser, clicking buttons, typing into inputs, and checking what appears on screen. They run in **jsdom** (a browser-like environment inside Node), use React Testing Library to render components, and assert on DOM output. They don't start a server or make network calls — data-fetching hooks are mocked. These tests answer: *does this component render the right thing and respond to user actions correctly?*
+
+| | Unit tests | Component tests |
+| --- | --- | --- |
+| **What they test** | Server handlers, utility functions | React components, contexts, pages |
+| **Environment** | Node (no DOM) | jsdom (simulated browser) |
+| **Rendering** | None — tests call functions directly | React Testing Library renders to a virtual DOM |
+| **File extension** | `.test.js` | `.test.jsx` |
+| **Location** | Next to the source (`api/*.test.js`, `src/utils/*.test.js`) | Next to the component (`src/**/*.test.jsx`) |
+| **Mocking** | `vi.mock()` replaces Supabase/Telegram/Cloudinary | `vi.mock()` replaces data-fetching hooks; providers wrap components |
+| **Example assertion** | `expect(res.statusCode).toBe(400)` | `expect(screen.getByText('Thank you!')).toBeInTheDocument()` |
+
+Both run together with `npm test`. The environment is set globally to `jsdom` in [vitest.config.js](../vitest.config.js) — this works for both because the Node-only API tests don't use any browser APIs that would conflict.
+
+---
+
 ## Unit tests — Vitest
 
 **Config:** [vitest.config.js](../vitest.config.js) — merges into the Vite config, excludes `tests/e2e/`.
