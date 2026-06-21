@@ -6,7 +6,7 @@ Detailed explanation of security issues for the Ukrainians in Texas MVP.
 
 ## 1. Database Credentials
 
-### Status: ✅ RESOLVED
+### Status: ✅ Resolved (Credentials)
 
 Two separate Supabase clients with different access levels:
 
@@ -36,7 +36,7 @@ The service key bypasses RLS. Keep it server-side only (no `VITE_` prefix).
 
 ## 2. Form Spam
 
-### Status: ✅ RESOLVED
+### Status: ✅ Resolved (Spam)
 
 Using a **custom React form** (`/add-service`) with layered spam protection:
 
@@ -111,11 +111,11 @@ Never do this with user content:
 
 ## 4. URL Validation
 
-### The Issue
+### The URL Issue
 
 Users submit URLs for their website, Instagram, Facebook, LinkedIn, and Messenger. These URLs are rendered as clickable links. Without validation, malicious URLs can be submitted.
 
-### The Risk
+### The URL Risk
 
 **JavaScript Protocol Attacks:**
 
@@ -131,7 +131,7 @@ If someone submits `javascript:alert('xss')` as their "website", clicking it exe
 <a href="data:text/html,<script>alert('xss')</script>">Link</a>
 ```
 
-### The Recommendation
+### The URL Recommendation
 
 **Protocol Whitelist — only allow `http://` and `https://`:**
 

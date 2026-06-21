@@ -1,5 +1,7 @@
 # Admin Dashboard Research Results
 
+> **Historical** — Research completed. The admin dashboard is live at `/admin`. See [admin-dashboard.md](../implementation/admin-dashboard.md).
+
 ## Executive Summary
 
 **Recommended stack in one sentence:** Build the admin as a lazy-loaded `/admin` route inside the existing repo, protect it with Supabase Auth + Vercel Edge Middleware, add admin-only Vercel serverless functions under `/api/admin/*` where needed, and migrate from Airtable to Supabase for auth, database, and a dramatically simpler admin API.

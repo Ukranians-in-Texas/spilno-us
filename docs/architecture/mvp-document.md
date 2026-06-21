@@ -1,5 +1,7 @@
 # Ukrainians in Texas — MVP Document
 
+> **Historical** — Original MVP spec. The current system is documented in [technical-guide.md](../technical-guide.md).
+
 ## Project Overview
 
 A service directory platform connecting Ukrainian professionals in Texas with people seeking their services. Users can browse, search, and filter service providers. Providers can submit their listings via a public form.

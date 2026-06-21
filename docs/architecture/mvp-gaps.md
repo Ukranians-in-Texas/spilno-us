@@ -1,5 +1,7 @@
 # MVP Gaps & Considerations
 
+> **Historical** — Gaps identified during the original MVP. Most have been addressed. See [technical-guide.md](../technical-guide.md) for current state.
+
 Areas to consider that may not be fully addressed in the main MVP document.
 
 ---

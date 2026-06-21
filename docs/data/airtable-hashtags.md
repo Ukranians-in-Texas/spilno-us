@@ -1,5 +1,7 @@
 # Airtable Hashtag Values
 
+> **Historical** — Airtable was replaced by Supabase (2026-03-08). Hashtags were replaced by a category/subcategory system. See [categories.js](../../src/data/categories.js).
+
 Predefined options for the `hashtags` Multiple select field in Airtable.
 
 Admin assigns these during review — providers do not set them via Google Form.
