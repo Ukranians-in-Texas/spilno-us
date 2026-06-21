@@ -110,10 +110,10 @@ Requires `.env.local` with all env vars (Supabase, Cloudinary). See CLAUDE.md fo
 | 44 | Upload 5 images | "+" button disappears (max reached) |
 | 45 | Try to drop a `.pdf` or `.txt` file | File is silently ignored; no error, no upload |
 | 46 | Try to upload an image > 5MB | Error shown: "imageTooLarge" |
-| 47 | Click the ✕ on a thumbnail | Image removed from UI; Cloudinary deletion fires in background |
+| 47 | Click the ✕ on a thumbnail | Image removed from UI; preview URL revoked |
 | 48 | Drag thumbnail to a new position | Images reorder; dragged item shows 40% opacity; drop target shows blue ring |
-| 49 | Start uploading an image, immediately click ✕ | Image removed; after upload completes in background, Cloudinary deletion fires |
-| 50 | Upload images, then navigate away | `sendBeacon` fires to delete uploaded images (check Network tab — `DELETE /api/delete-image`) |
+| 49 | Start uploading an image, immediately click ✕ | Upload aborted; image removed from UI |
+| 50 | Upload images, then navigate away | In-progress uploads aborted; orphaned images cleaned up by weekly server-side cron |
 | 51 | Submit while an image is still uploading | Submit button disabled and shows "Please wait for images to upload" |
 
 ---
