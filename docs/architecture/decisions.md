@@ -57,7 +57,7 @@ Airtable worked well for MVP but lacked:
 **Date:** 2026-02-15
 **Status:** ✅ Accepted
 
-### Alternatives Considered
+### Hosting Alternatives
 
 | Option | Pros | Cons | Best For |
 | --- | --- | --- | --- |
@@ -105,7 +105,7 @@ Airtable worked well for MVP but lacked:
 **Date:** 2026-03-05
 **Status:** ✅ Accepted (migrated from Google Drive)
 
-### Alternatives Considered
+### Image Hosting Alternatives
 
 | Option | Pros | Cons | Cost |
 | --- | --- | --- | --- |
@@ -130,7 +130,7 @@ Airtable worked well for MVP but lacked:
    - 25 credits/month covers typical usage
    - No infrastructure to manage
 
-### When to Reconsider
+### When to Reconsider Cloudinary
 
 - If we exceed free tier limits → upgrade Cloudinary plan or migrate to Vercel Blob
 - If cost becomes a concern → AWS S3 + CloudFront
@@ -143,7 +143,7 @@ Airtable worked well for MVP but lacked:
 **Date:** 2026-02-15 (original) / 2026-03-01 (migration)
 **Status:** ✅ Accepted
 
-### Alternatives Considered
+### Form Alternatives
 
 | Option | Pros | Cons |
 | --- | --- | --- |

@@ -1,5 +1,7 @@
 # Telegram Approve/Deny for Service Submissions
 
+> **Historical** — Completed. Telegram inline buttons are live. See [technical-guide.md](../../technical-guide.md) for current state.
+
 **Date:** 2026-03-20
 **Status:** Approved
 

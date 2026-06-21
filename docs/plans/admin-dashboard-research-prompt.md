@@ -1,5 +1,7 @@
 # Research Prompt: Admin Dashboard for Ukrainian Community Directory
 
+> **Historical** — Research completed. The admin dashboard is live at `/admin`. See [admin-dashboard.md](../implementation/admin-dashboard.md).
+
 ## Context
 
 I'm building an admin dashboard for a Ukrainian professional services directory web app serving the Texas community. Here's the current setup:

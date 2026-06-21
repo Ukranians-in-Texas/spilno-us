@@ -20,9 +20,10 @@
     { "id": "api-services", "label": "GET /api/services", "category": "server", "path": "api/services.js", "detail": "Returns approved services (cached 5m / SWR 10m)" },
     { "id": "api-submit", "label": "POST /api/submit-service", "category": "server", "path": "api/submit-service.js", "detail": "Validates, rate-limits, inserts, notifies Telegram" },
     { "id": "api-telegram-webhook", "label": "POST /api/telegram-webhook", "category": "server", "path": "api/telegram-webhook.js", "detail": "Approve/Delete button callbacks (secret-verified)" },
-    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one image from Cloudinary by public id" },
+    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one Cloudinary image by public id (requires Supabase Bearer token)" },
 
     { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * * — pings DB to keep it warm" },
+    { "id": "cleanup-images", "label": "cleanup-images cron", "category": "job", "path": "api/cleanup-images.js", "detail": "Vercel Cron 0 3 * * 0 — deletes orphaned Cloudinary images (48h grace period)" },
 
     { "id": "services-table", "label": "services table", "category": "data", "path": "supabase/schema.sql", "detail": "Supabase Postgres, RLS: public reads approved=true" },
 
@@ -59,7 +60,11 @@
     { "from": "admin-dashboard", "to": "api-delete-image" },
     { "from": "api-delete-image", "to": "cloudinary" },
 
-    { "from": "keep-alive", "to": "services-table" }
+    { "from": "keep-alive", "to": "services-table" },
+
+    { "from": "cleanup-images", "to": "cloudinary" },
+    { "from": "cleanup-images", "to": "services-table" },
+    { "from": "cleanup-images", "to": "telegram" }
   ],
   "flows": [
     {
@@ -124,12 +129,12 @@
     {
       "id": "admin-queue-manage",
       "name": "Manage queue (dashboard)",
-      "description": "Authenticated dashboard reads pending rows directly via supabase-js; deleting calls the image API then removes the row.",
+      "description": "Authenticated dashboard reads pending rows directly via supabase-js; deleting calls the image API (with Bearer token) then removes the row.",
       "steps": [
         { "from": "admin", "to": "admin-dashboard", "label": "Opens review queue", "detail": "src/pages/admin/AdminQueuePage.jsx" },
         { "from": "admin-dashboard", "to": "services-table", "label": "Read / update / delete", "detail": "supabase-js direct, anon key + admin RLS (approved=false rows)" },
         { "from": "services-table", "to": "admin-dashboard", "label": "Pending rows", "detail": "order by submitted_at desc" },
-        { "from": "admin-dashboard", "to": "api-delete-image", "label": "Delete each image", "detail": "POST /api/delete-image { publicId } before row delete" },
+        { "from": "admin-dashboard", "to": "api-delete-image", "label": "Delete each image", "detail": "POST /api/delete-image { publicId } with Authorization: Bearer <token>" },
         { "from": "api-delete-image", "to": "cloudinary", "label": "Destroy asset", "detail": "deleteCloudinaryImageById (signed API)" }
       ]
     },
@@ -139,6 +144,17 @@
       "description": "A daily Vercel Cron invocation runs a trivial query so Supabase doesn't idle out.",
       "steps": [
         { "from": "keep-alive", "to": "services-table", "label": "SELECT id LIMIT 1", "detail": "Vercel Cron schedule 0 0 * * * (api/keep-alive.js)" }
+      ]
+    },
+    {
+      "id": "cleanup-images-cron",
+      "name": "Orphan image cleanup",
+      "description": "Weekly cron lists all Cloudinary images, cross-references against services table, and deletes orphans older than 48 hours. Sends Telegram alerts on success or failure.",
+      "steps": [
+        { "from": "cleanup-images", "to": "cloudinary", "label": "List all resources", "detail": "Cloudinary Admin API, paginated (max 500/page)" },
+        { "from": "cleanup-images", "to": "services-table", "label": "Fetch all image URLs", "detail": "select images from services — aborts on query error or null data" },
+        { "from": "cleanup-images", "to": "cloudinary", "label": "Delete orphaned images", "detail": "Skip images < 48h old; delete those not referenced by any service" },
+        { "from": "cleanup-images", "to": "telegram", "label": "Send alert", "detail": "Reports count deleted, or partial/full failure details" }
       ]
     }
   ],

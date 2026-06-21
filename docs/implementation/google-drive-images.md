@@ -1,5 +1,7 @@
 # Google Drive Image Setup
 
+> **Historical** — Google Drive was replaced by Cloudinary (2026-03-05). See [technical-guide.md](../technical-guide.md) §7 for the current image pipeline.
+
 ## Problem
 
 Google Drive URLs submitted via Google Form (`drive.google.com/open?id=...`) require:

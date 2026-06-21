@@ -19,7 +19,7 @@ Assumptions, conflicts, and open questions tracked during MVP implementation.
 
 1. **Routing** — Uses React Router 7. Main public routes: `/`, `/add-service`, `/privacy`. Admin routes: `/admin/login`, `/admin`, `/admin/services`.
 2. **Add Service form** — Custom React form at `/add-service`. Submits directly to Supabase via `/api/submit-service`. No Google Forms.
-3. **Featured listings** — Showing newest 6 approved listings (no separate "featured" flag per MVP doc).
+3. **Featured listings** — ~~Showing newest 6 approved listings (no separate "featured" flag per MVP doc).~~ A `featured` + `featured_order` flag was added post-MVP; featured listings now sort first in the highlighted section.
 4. **Client-side filtering** — All approved services loaded at once; search/filter happens in browser (per MVP_GAPS.md recommendation for <200 listings).
 5. **Footer** — Minimal footer added.
 6. **Image handling** — Images uploaded to Cloudinary via unsigned preset; URLs stored in Supabase `images` field (comma-separated). Fallback placeholder shown on load error.

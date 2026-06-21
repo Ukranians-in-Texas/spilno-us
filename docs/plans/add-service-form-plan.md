@@ -1,5 +1,7 @@
 # Add Service Form — Implementation Plan
 
+> **Historical** — Completed. The custom form is live at `/add-service`. See [technical-guide.md](../technical-guide.md) for current state.
+
 ## Overview
 
 Replace the external Google Form link with a native `/add-service` page.

@@ -27,12 +27,14 @@ Any authenticated Supabase user — not just your admin — gets full read/write
 
 **Files:** `api/delete-image.js`, `api/submit-service.js`
 
-Both endpoints are callable by anyone without authentication:
+Both endpoints were callable by anyone without authentication:
 
-- `delete-image` lets anyone delete any Cloudinary image by guessing a public ID — no ownership check.
-- `submit-service` accepts unlimited spam submissions with no rate limiting or auth.
+- `delete-image` let anyone delete any Cloudinary image by guessing a public ID — no ownership check.
+- `submit-service` accepted unlimited spam submissions with no rate limiting or auth.
 
-**Fix (2026-03-16):** `delete-image` now restricts deletion to images within `CLOUDINARY_UPLOAD_FOLDER/` prefix — requires env var `CLOUDINARY_UPLOAD_FOLDER` in Vercel. `submit-service` rate-limits to 3 submissions per email per 24 hours via Supabase.
+**Fix (2026-03-16):** `delete-image` restricted deletion to images within `CLOUDINARY_UPLOAD_FOLDER/` prefix. `submit-service` rate-limits to 3 submissions per email per 24 hours via Supabase.
+
+**Fix (2026-06-20):** `delete-image` now requires a valid Supabase Bearer token (admin session) — returns `401` without one. The public form no longer calls this endpoint; orphaned images are cleaned up by a weekly server-side cron (`api/cleanup-images.js`). Rate limiting on `submit-service` now fails closed (returns `500` on DB query error instead of allowing through).
 
 **OWASP:** A01 – Broken Access Control
 
@@ -75,27 +77,27 @@ Server-side secrets are assigned into `process.env` at build time. These should 
 
 ## Medium
 
-### 5. No Rate Limiting
+### 5. ~~No Rate Limiting~~ — Partially Fixed
 
 **Files:** `api/submit-service.js`, `api/delete-image.js`, `api/services.js`
 
-No rate limiting on any endpoint. Enables spam submissions, Cloudinary ID enumeration, and API flooding.
-
 **What is currently protected:**
 
-- `GET /api/services` has a 5min CDN cache (`s-maxage=300`), so Vercel absorbs repeated requests without hitting Supabase
+- `POST /api/submit-service` — email-based rate limit (3/24h), fails closed on DB error; honeypot field silently rejects simple bots
+- `POST /api/delete-image` — requires Supabase admin auth (no rate limit needed; access-controlled)
+- `GET /api/services` — 5 min CDN cache (`s-maxage=300`)
 - Vercel provides basic DDoS protection at the infrastructure level on all plans
-- `submit-service` has a honeypot field that silently rejects simple bots
 
 **What is not protected:**
 
-- `POST /api/submit-service` — ~~no rate limiting~~ email-based limit added (3/24h), but IP-based limiting still missing; a bot using varied emails can still spam
+- `POST /api/submit-service` — IP-based limiting still missing; a bot using varied emails can still spam
+- Direct Cloudinary uploads via unsigned preset bypass the backend entirely
 
 **Remaining mitigation options:**
 
-1. **Upstash Rate Limit** — free Redis-based IP rate limiting, ~5 min to add to `submit-service.js`
-2. **Cloudflare Turnstile** — free CAPTCHA, unobtrusive, stops automated submissions at the form level
-3. **Vercel Rate Limiting** — built-in, but requires Pro plan
+1. **Vercel Firewall** — per-IP/path rate limiting + bot filtering across all `/api` routes
+2. **Upstash Rate Limit** — free Redis-based IP rate limiting inside serverless functions
+3. **Cloudflare Turnstile** — free CAPTCHA for the submission form
 
 **OWASP:** A04 – Insecure Design
 
@@ -148,9 +150,10 @@ POST endpoints have no CSRF token validation. An attacker could trick a user's b
 | Priority | Issue | File(s) | Status |
 | --- | --- | --- | --- |
 | ~~Now~~ | ~~Fix RLS — use admin role/claim, not just `authenticated`~~ | `supabase/admin-rls.sql` | Fixed |
-| ~~Now~~ | ~~Add auth to `delete-image` + ownership check~~ | `api/delete-image.js` | Fixed |
+| ~~Now~~ | ~~Add auth to `delete-image`~~ | `api/delete-image.js` | Fixed (Bearer token) |
 | ~~This week~~ | ~~Add input validation (email, phone, category allowlist, max lengths)~~ | `api/submit-service.js` | Fixed |
-| This week | Add IP-based rate limiting | `api/submit-service.js` | Partial |
+| ~~This week~~ | ~~Fail-closed rate limiting~~ | `api/submit-service.js` | Fixed |
+| Backlog | Add IP-based rate limiting (Vercel Firewall or Upstash) | `/api` routes | Open |
 | ~~This week~~ | ~~Remove server secrets from Vite config~~ | `vite.config.js` | Fixed |
 | ~~Soon~~ | ~~Add CSP headers~~ | `vercel.json` | Fixed |
 | ~~Soon~~ | ~~Fix AdminLayout loading state order~~ | `src/pages/admin/AdminLayout.jsx` | Fixed |

@@ -23,7 +23,7 @@ A deep, self-contained reference for **Spilno.us** — how the system fits toget
 **Major moving parts:**
 
 - **React SPA** (public site + admin dashboard) — single bundle, client-side routed.
-- **Vercel serverless functions** (`/api/*`) — read proxy, submission handler, image delete, Telegram webhook, keep-alive cron.
+- **Vercel serverless functions** (`/api/*`) — read proxy, submission handler, image delete, Telegram webhook, keep-alive cron, orphan image cleanup cron.
 - **Supabase Postgres** — single `services` table, RLS-protected.
 - **Cloudinary** — image hosting (unsigned client upload, signed server delete).
 - **Telegram bot** — submission notifications with inline Approve/Delete buttons.
@@ -61,6 +61,11 @@ flowchart TD
 
     Cron[Vercel cron daily] -->|GET| KeepAlive[api/keep-alive.js]
     KeepAlive -->|select 1 row| DB
+
+    CronWeekly[Vercel cron weekly] -->|GET| Cleanup[api/cleanup-images.js]
+    Cleanup -->|list resources| Cloudinary
+    Cleanup -->|select images| DB
+    Cleanup -->|alert| Bot
 ```
 
 ### Representative end-to-end flow — a new submission
@@ -86,7 +91,8 @@ spilno-us/
 │   │   └── cloudinary.js      # delete by public_id / delete CSV of image URLs
 │   ├── services.js            # GET  — public read of approved services (cached)
 │   ├── submit-service.js      # POST — validate + rate-limit + insert + notify
-│   ├── delete-image.js        # POST — delete one Cloudinary image by publicId
+│   ├── delete-image.js        # POST — delete one Cloudinary image by publicId (auth required)
+│   ├── cleanup-images.js      # GET  — weekly cron, deletes orphaned Cloudinary images
 │   ├── telegram-webhook.js    # POST — handle Approve/Delete button callbacks
 │   ├── keep-alive.js          # GET  — daily cron, pings DB to keep project warm
 │   └── *.test.js              # Vitest unit tests (mocks for Supabase/Telegram/Cloudinary)
@@ -243,13 +249,11 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | GET | `/api/services` | List approved services; query: `category`, `limit`, `lang` (`en`/`ua`). Cached 5 min. |
 | POST | `/api/submit-service` | Submit a new listing (validated, rate-limited, honeypot). |
 
-### Authenticated (called from the admin SPA; gated by header/secret, not session)
+### Authenticated (called from the admin SPA; requires Supabase Bearer token)
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/api/delete-image` | Delete one Cloudinary image by `publicId`. |
-
-> Note: `/api/delete-image` has **no auth check** itself — it deletes any valid `publicId`. It is called from the admin UI but is not access-controlled. See [§14 Security](#14-security-model) and [§17](#17-open-questions--future-work).
+| POST | `/api/delete-image` | Delete one Cloudinary image by `publicId`. Requires valid admin session token. |
 
 ### Webhooks
 
@@ -262,6 +266,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | Method | Path | Schedule | Purpose |
 | --- | --- | --- | --- |
 | GET | `/api/keep-alive` | `0 0 * * *` (daily 00:00 UTC) | Pings DB (`select id limit 1`) to keep the Supabase project from idling. |
+| GET | `/api/cleanup-images` | `0 3 * * 0` (Sunday 03:00 UTC) | Deletes orphaned Cloudinary images (48h grace period). Sends Telegram alerts. |
 
 > Admin reads/writes to the `services` table go **directly** to Supabase from the browser (anon key + JWT + RLS), not through `/api`.
 
@@ -286,11 +291,13 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 ## 9. Testing
 
-**82 tests across 6 files**, all Vitest. External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network/DB calls.
+**112 tests across 8 files**, all Vitest. External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network/DB calls.
 
 | File | Tests | Covers |
 | --- | --- | --- |
-| [api/submit-service.test.js](../api/submit-service.test.js) | 26 | All validation rules, honeypot, rate limiting, image filtering, success/error paths |
+| [api/submit-service.test.js](../api/submit-service.test.js) | 28 | All validation rules, honeypot, rate limiting (incl. fail-closed), image filtering, success/error paths |
+| [api/delete-image.test.js](../api/delete-image.test.js) | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, Cloudinary success/error |
+| [api/cleanup-images.test.js](../api/cleanup-images.test.js) | 13 | Orphan deletion, 48h grace period, pagination, empty/null data, Cloudinary failures, Telegram alerts |
 | [api/telegram-webhook.test.js](../api/telegram-webhook.test.js) | 15 | Secret check, UUID/action validation, approve/delete, idempotency, errors |
 | [api/_lib/telegram.test.js](../api/_lib/telegram.test.js) | 11 | Message building, escaping, notification payload |
 | [api/_lib/cloudinary.test.js](../api/_lib/cloudinary.test.js) | 8 | Public-id extraction, single/CSV delete |
@@ -300,7 +307,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 **What is NOT tested:**
 
 - No React component/UI tests (no Testing Library) — HomePage filtering, admin queue/edit, the form, contexts, hooks are untested.
-- `api/services.js`, `api/delete-image.js`, `api/keep-alive.js` handlers — untested.
+- `api/services.js`, `api/keep-alive.js` handlers — untested.
 - `categories.js` helpers (`findParentCategory`, `getAllSubcategories`) — untested.
 - The Vite local-dev `/api` middleware — untested (and diverges from prod, see §13).
 - No integration/e2e tests.
@@ -397,22 +404,22 @@ Implication: a submission that passes locally may be rejected in production, and
 
 - **RLS is the real boundary.** Public can only `select` rows where `approved=true`; all writes require the admin JWT role claim. The browser admin client uses the anon key — it cannot write without a valid admin session.
 - **Service key isolation.** `SUPABASE_SERVICE_KEY` lives only in serverless functions; it bypasses RLS and must never reach the client. Public reads go through `/api/services`, which uses it server-side.
-- **Submission hardening:** honeypot (silent 200), category allowlist, per-field format + length validation, image-URL allowlisting to Cloudinary, and a 3-per-email-per-24h rate limit.
+- **Submission hardening:** honeypot (silent 200), category allowlist, per-field format + length validation, image-URL allowlisting to Cloudinary, and a 3-per-email-per-24h rate limit (fails closed on DB error).
+- **Image deletion:** `/api/delete-image` requires a valid Supabase Bearer token (admin session). The public form never calls this endpoint — orphaned images from abandoned sessions are cleaned up by a weekly cron (`api/cleanup-images.js`) with a 48h grace period.
 - **Telegram webhook:** authenticated by a shared secret header (`x-telegram-bot-api-secret-token`), plus UUID and action validation.
 - **HTML escaping:** Telegram messages escape `&<>"` ([api/_lib/telegram.js](../api/_lib/telegram.js)).
 - **Browser headers** ([vercel.json](../vercel.json)): a strict CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` disabling camera/mic/geo.
-- **Known weak spot:** `/api/delete-image` has no authentication — anyone who knows a Cloudinary `publicId` can delete that image. It is only *called* from the admin UI but is not *protected*. See [§17](#17-open-questions--future-work).
 
 ### Rate limiting
 
-The only rate limit is on submissions, in [api/submit-service.js](../api/submit-service.js):
+Email-based rate limit on submissions in [api/submit-service.js](../api/submit-service.js):
 
-- **Scope:** `POST /api/submit-service` only. No limit on `/api/services`, `/api/delete-image`, or `/api/telegram-webhook` (the webhook is gated by a secret instead).
-- **Mechanism:** before insert, count `services` rows whose `email` (case-insensitive `ilike`) matches and whose `submitted_at` is within the last 24h. If the count is `>= 3`, return `429` and skip the insert.
+- **Scope:** `POST /api/submit-service` only. `/api/delete-image` is access-controlled (auth), `/api/telegram-webhook` is gated by a secret.
+- **Mechanism:** before insert, count `services` rows whose `email` (case-insensitive `ilike`) matches and whose `submitted_at` is within the last 24h. If the count is `>= 3`, return `429`. **Fails closed** — if the count query errors, returns `500` instead of allowing the submission through.
 - **Key:** the submitter's email — not IP. There is no Redis/KV store; the existing `services` table is the counter.
 - **Limitations:** trivially bypassed by changing email; counts only *persisted* rows (honeypot-rejected and validation-failed requests don't count); enforced **only in production** — the local Vite middleware skips it (see §13).
 
-For stronger or IP-based limiting (Cloudflare in front, or Upstash Redis + `@upstash/ratelimit` inside the function), see [docs/rate-limiting.md](rate-limiting.md). The current email limit is considered sufficient for form spam.
+For stronger or IP-based limiting (Vercel Firewall, or Upstash Redis + `@upstash/ratelimit` inside the function), see [docs/rate-limiting.md](rate-limiting.md).
 
 ---
 
@@ -448,10 +455,10 @@ For stronger or IP-based limiting (Cloudflare in front, or Upstash Redis + `@ups
 
 Items the code could not confirm, or known gaps worth flagging:
 
-1. **Historical planning docs are stale.** README and CLAUDE.md are current, but several files under `docs/architecture/` and `docs/plans/` predate the current stack (they still describe the earlier Airtable / Google Forms / Google Drive design). They are kept as historical snapshots; this guide and [CLAUDE.md](../CLAUDE.md) are the accurate sources.
-2. **`/api/delete-image` is unauthenticated.** Add an auth check (e.g. verify a Supabase admin JWT) or move deletion server-side behind the webhook/RLS, so it can't be called by anyone.
+1. **Historical planning docs are marked.** Several files under `docs/architecture/`, `docs/data/`, `docs/plans/`, and `docs/implementation/` predate the current stack (Airtable / Google Forms / Google Drive era). Each has a `> **Historical**` banner at the top pointing to the current source of truth. This guide and [CLAUDE.md](../CLAUDE.md) are the accurate sources.
+2. ~~**`/api/delete-image` is unauthenticated.**~~ Fixed — now requires a valid Supabase Bearer token (admin session).
 3. **`messenger` column is half-wired.** Present in schema + admin `EditPanel`, but not collected by the public form or written by `submit-service.js`. Decide: admin-only field, or wire it end-to-end, or drop it.
-4. **Orphaned Cloudinary images.** Images upload to Cloudinary *before* the form is submitted; if the user abandons the form, the images are never referenced and are not cleaned up. **[Assumption]** this is accepted. Consider a cleanup strategy.
+4. ~~**Orphaned Cloudinary images.**~~ Fixed — weekly cron (`api/cleanup-images.js`) deletes orphaned images with a 48h grace period and Telegram alerts.
 5. **Local dev API diverges from production** (see §13). Consider importing the real handlers into the Vite middleware so behavior matches.
 6. **Google Analytics / GTM is allowed by CSP but not present in code.** `vercel.json` whitelists `googletagmanager.com` / `google-analytics.com`, yet there is no GA/GTM snippet in `index.html` or `src`. Either wire analytics or tighten the CSP.
 7. **Admin provisioning + Telegram webhook registration are manual.** No scripts in-repo for creating the admin user / `app_metadata.role` claim or for `setWebhook`. Document the exact steps (or script them) so the setup is reproducible.

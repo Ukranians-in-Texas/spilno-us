@@ -1,5 +1,7 @@
 # Telegram Approve/Deny Implementation Plan
 
+> **Historical** — Completed. Telegram inline buttons are live. See [technical-guide.md](../../technical-guide.md) for current state.
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add ✅ Approve / ❌ Delete inline buttons to Telegram new-submission notifications, backed by a Vercel serverless webhook that performs the action directly in Supabase.
