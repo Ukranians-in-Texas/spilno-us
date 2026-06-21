@@ -66,6 +66,12 @@ API tests run in Node environment (default). Component tests need `jsdom` — se
 
 **Config:** same [vitest.config.js](../vitest.config.js) with `environment: 'jsdom'`. The setup file ([tests/setup.js](../tests/setup.js)) loads `@testing-library/jest-dom` matchers, auto-cleans the DOM between tests, and polyfills `localStorage` for Node 26 + jsdom 29.
 
+### Node 26 + jsdom 29 localStorage issue
+
+Node 26 added an experimental `globalThis.localStorage` property that is `undefined` unless the `--localstorage-file` flag is passed. This shadows jsdom's own working `localStorage` implementation — even though jsdom sets up `window.localStorage`, the bare `localStorage` reference in component code resolves to Node's `undefined` version instead.
+
+The polyfill in [tests/setup.js](../tests/setup.js) detects this and assigns a simple in-memory `localStorage` to `globalThis`. If you upgrade Node or jsdom and tests start failing with `Cannot read properties of undefined (reading 'clear')` or `Cannot read properties of undefined (reading 'getItem')`, this is the place to look.
+
 **What's covered (32 tests, 5 files):**
 
 | File | Tests | Covers |
