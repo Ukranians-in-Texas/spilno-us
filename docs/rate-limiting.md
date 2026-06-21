@@ -10,8 +10,8 @@ is within the last 24h; if the count is `>= 3` it returns `429`.
 
 - **Keyed on email, not IP.** Changing the email defeats it completely. It stops
   accidental duplicate submissions, not a determined bot.
-- **Fails open.** The check is `if (!countError && count >= 3)`. If the count query
-  errors, the submission proceeds with no limit.
+- ~~**Fails open.**~~ **Fixed — now fails closed.** If the count query errors, the
+  submission is rejected with a 500 instead of proceeding.
 - **Deleting a row frees the slot.** The limit counts live `services` rows, so an
   approved-then-deleted (or Telegram-deleted) submission no longer counts toward the 3.
 - **Only counts persisted rows.** Honeypot-rejected and validation-failed requests
@@ -25,7 +25,7 @@ The submit endpoint is the *least* exposed surface. These are unprotected today:
 | Surface | Risk | Current protection |
 | --- | --- | --- |
 | `POST /api/submit-service` | Form spam | Email limit (weak, above) |
-| `POST /api/delete-image` | **Unauthenticated** — anyone with a Cloudinary `publicId` can delete images, and it's unthrottled (Cloudinary Admin API abuse / cost) | None |
+| `POST /api/delete-image` | ~~Unauthenticated~~ **Fixed — requires Supabase admin JWT.** Orphaned images cleaned up by weekly cron (`api/cleanup-images.js`). | Auth (Bearer token) |
 | Direct Cloudinary upload | Form uploads go **straight to Cloudinary** via the unsigned preset — they never hit `/api`, so storage/cost can be abused without ever submitting | Cloudinary preset settings only |
 | `GET /api/services` | Read scraping | Cached (`s-maxage=300`), low risk |
 | `POST /api/telegram-webhook` | Forged callbacks | Secret-token header (adequate) |
@@ -98,17 +98,15 @@ State is lost between invocations in serverless environments. Not viable.
 
 Rate limiting alone is not the whole answer — close the structural gaps too:
 
-1. **Authenticate `/api/delete-image`** — verify a Supabase admin JWT (or move
-   deletion behind the Telegram webhook / RLS). This is the highest-value fix; a
-   rate limit only slows the abuse, auth stops it.
+1. ~~**Authenticate `/api/delete-image`**~~ — **Done.** Requires a Supabase admin
+   JWT via `Authorization: Bearer <token>` header. Client-side delete calls removed
+   from the public form; orphaned Cloudinary images cleaned up by a weekly cron
+   (`api/cleanup-images.js`, Sundays 3 AM UTC).
 2. **Constrain the Cloudinary upload preset** — set folder, allowed formats, max file
    size, and (ideally) signed uploads so direct uploads can't be abused for arbitrary
-   storage.
+   storage. *(Still open.)*
 3. **Add the Vercel Firewall** (option 0) for per-IP/path limiting + bot filtering
-   across all `/api` routes — covers what the email limit cannot.
-4. **Keep the email limit** as cheap defense-in-depth for casual duplicate submits,
-   but don't treat it as real spam protection. Consider also failing *closed* on a
-   count error.
-
-If you only do one thing: **authenticate `/api/delete-image`**. The email limit
-guards the least-exposed endpoint; the unauthenticated delete is the actual hole.
+   across all `/api` routes — covers what the email limit cannot. *(Still open —
+   configure in Vercel Dashboard → Firewall → Custom Rules.)*
+4. ~~**Keep the email limit / fail closed**~~ — **Done.** Email limit now fails
+   closed: count query errors return 500 instead of allowing the submission through.
