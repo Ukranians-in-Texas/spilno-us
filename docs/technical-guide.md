@@ -309,7 +309,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 ## 9. Testing
 
-**112 tests across 8 files**, all Vitest. External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network/DB calls.
+**111 tests across 8 files**, all Vitest. External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network/DB calls.
 
 | File | Tests | Covers |
 | --- | --- | --- |
