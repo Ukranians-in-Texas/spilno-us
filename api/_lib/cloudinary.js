@@ -1,4 +1,4 @@
-function getPublicIdFromUrl(url) {
+export function getPublicIdFromUrl(url) {
   const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^/.]+$/);
   return match ? match[1] : null;
 }
