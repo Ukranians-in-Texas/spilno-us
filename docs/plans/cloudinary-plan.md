@@ -1,5 +1,7 @@
 # Cloudinary Integration Plan
 
+> **Historical** — Completed. Cloudinary is the current image host. See [technical-guide.md](../technical-guide.md) for current state.
+
 ## What changes and why
 
 ### 1. `src/components/AddServiceForm/AddServiceForm.jsx`

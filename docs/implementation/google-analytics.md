@@ -1,5 +1,7 @@
 # Google Analytics 4 Setup
 
+> **Not yet implemented** — GA4 is allowed by the CSP headers but the gtag snippet has not been added to the app. This guide is ready to follow when analytics are wired up.
+
 This guide covers adding GA4 to the Ukrainians in Texas app. No extra npm packages needed — uses the native `gtag.js` script.
 
 ---

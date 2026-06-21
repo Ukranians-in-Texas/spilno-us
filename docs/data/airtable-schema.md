@@ -1,8 +1,8 @@
 # Database Schema
 
-Supabase (PostgreSQL) — table: `services`
+> **Historical** — Originally documented the Airtable schema. Column definitions below are still accurate for the Supabase `services` table. The authoritative schema is [supabase/schema.sql](../../supabase/schema.sql).
 
-> Previously: Airtable (migrated to Supabase 2026-03-08)
+Supabase (PostgreSQL) — table: `services`
 
 | Column | Type | Default | Notes |
 | --- | --- | --- | --- |
