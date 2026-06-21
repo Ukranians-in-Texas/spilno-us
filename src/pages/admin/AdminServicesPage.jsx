@@ -94,13 +94,18 @@ function EditPanel({ service, onClose, onSave }) {
     if (!window.confirm(`Delete "${form.title}"?`)) return;
     if (form.images) {
       const urls = form.images.split(',').map((u) => u.trim()).filter((u) => u.startsWith('https://res.cloudinary.com/'));
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       await Promise.allSettled(
         urls.map((url) => {
           const publicId = getCloudinaryPublicId(url);
           if (!publicId) return Promise.resolve();
           return fetch('/api/delete-image', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
             body: JSON.stringify({ publicId }),
           });
         })

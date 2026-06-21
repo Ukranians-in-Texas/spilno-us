@@ -35,16 +35,6 @@ async function uploadToCloudinary(file, signal) {
     return data.secure_url;
 }
 
-function deleteFromCloudinary(cloudUrl) {
-    const match = cloudUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-    if (!match) return;
-    fetch("/api/delete-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicId: match[1] }),
-    }).catch(() => {});
-}
-
 function validate(data) {
     const e = {};
     if (!data.category) e.category = "categoryRequired";
@@ -163,20 +153,6 @@ export function AddServiceForm() {
             Object.values(uploadControllersRef.current).forEach((c) =>
                 c.abort(),
             );
-            imagesRef.current
-                .filter((img) => img.cloudUrl)
-                .forEach((img) => {
-                    const match = img.cloudUrl.match(
-                        /\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/,
-                    );
-                    if (!match) return;
-                    navigator.sendBeacon(
-                        "/api/delete-image",
-                        new Blob([JSON.stringify({ publicId: match[1] })], {
-                            type: "application/json",
-                        }),
-                    );
-                });
         };
 
         window.addEventListener("beforeunload", handleBeforeUnload);
@@ -188,9 +164,6 @@ export function AddServiceForm() {
             Object.values(uploadControllersRef.current).forEach((c) =>
                 c.abort(),
             );
-            imagesRef.current
-                .filter((img) => img.cloudUrl)
-                .forEach((img) => deleteFromCloudinary(img.cloudUrl));
         };
     }, []);
 
@@ -220,7 +193,7 @@ export function AddServiceForm() {
                             removedIdsRef.current.has(id) ||
                             isUnmountingRef.current
                         ) {
-                            deleteFromCloudinary(cloudUrl);
+                            return;
                         } else {
                             setImages((prev) =>
                                 prev.map((img) =>
@@ -289,7 +262,7 @@ export function AddServiceForm() {
             .then((blob) => uploadToCloudinary(new File([blob], "image")))
             .then((cloudUrl) => {
                 if (removedIdsRef.current.has(id)) {
-                    deleteFromCloudinary(cloudUrl);
+                    return;
                 } else {
                     setImages((prev) =>
                         prev.map((i) =>
@@ -313,7 +286,6 @@ export function AddServiceForm() {
         removedIdsRef.current.add(id);
         const img = images.find((i) => i.id === id);
         if (img?.previewUrl) URL.revokeObjectURL(img.previewUrl);
-        if (img?.cloudUrl) deleteFromCloudinary(img.cloudUrl);
         setImages((prev) => prev.filter((i) => i.id !== id));
     };
 

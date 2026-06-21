@@ -106,7 +106,11 @@ export default async function handler(req, res) {
       .select('*', { count: 'exact', head: true })
       .ilike('email', normalizedEmail)
       .gte('submitted_at', cutoff);
-    if (!countError && count >= 3) {
+    if (countError) {
+      console.error('Rate limit check failed:', countError);
+      return res.status(500).json({ error: 'Unable to process submission. Please try again.' });
+    }
+    if (count >= 3) {
       return res.status(429).json({ error: 'Too many submissions. Please try again later.' });
     }
 

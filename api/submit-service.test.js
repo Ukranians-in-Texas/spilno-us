@@ -212,6 +212,14 @@ describe('rate limiting', () => {
     await handler(makeReq(), res);
     expect(res._status).toBe(200);
   });
+
+  it('returns 500 when count query errors (fail closed)', async () => {
+    mockSupabase({ countError: { message: 'connection refused' } });
+    const res = makeRes();
+    await handler(makeReq(), res);
+    expect(res._status).toBe(500);
+    expect(res._body.error).toMatch(/unable to process/i);
+  });
 });
 
 describe('image URL filtering', () => {
