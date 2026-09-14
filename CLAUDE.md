@@ -64,10 +64,12 @@ api/                # Vercel serverless functions
   delete-image.js   # DELETE — remove an image from Cloudinary
   telegram-webhook.js # POST — Telegram Approve/Delete button callbacks
   keep-alive.js     # GET — daily cron (vercel.json), pings DB to keep Supabase warm
-  cleanup-images.js # GET — weekly cron (vercel.json), deletes orphaned Cloudinary images
+  cleanup-images.js # GET — weekly cron (vercel.json); deletes orphaned Cloudinary images AND
+                    #   commits a services-table JSON backup to GitHub (piggybacked — see below)
   _lib/supabase.js  # Supabase client + fetchApprovedServices
   _lib/telegram.js  # buildMessageText + sendTelegramNotification
   _lib/cloudinary.js # delete by public_id / delete CSV of image URLs
+  _lib/github.js    # backupServicesToGitHub — commits a services.json snapshot to data-backups
 supabase/
   schema.sql        # Table definition + public read RLS policy
   admin-rls.sql     # Admin full-access RLS policy (run once in SQL Editor)
@@ -132,6 +134,8 @@ Server-side (Vercel only, never in client):
 - `TELEGRAM_WEBHOOK_SECRET`
 - `CRON_SECRET` — required for the `keep-alive` / `cleanup-images` crons to run; both 401 without it
 - `HEALTHCHECK_URL` — optional; `keep-alive` pings it on success as a dead-man's-switch
+- `GITHUB_TOKEN` — fine-grained PAT (Contents: Read and write) on this repo; `cleanup-images.js`
+  uses it to commit a weekly `services` table JSON backup to the `data-backups` branch
 
 ## Images
 
@@ -148,5 +152,8 @@ Server-side (Vercel only, never in client):
   export in the function file (Vercel ignores that; a past instance of this is why the keep-alive
   cron silently never ran — see `docs/db-pause-recovery-plan.md`)
   - Daily `keep-alive` cron (`0 0 * * *`) pings the DB to keep Supabase from idling
-  - Weekly `cleanup-images` cron (`0 3 * * 0`) deletes orphaned Cloudinary images
+  - Weekly `cleanup-images` cron (`0 3 * * 0`) deletes orphaned Cloudinary images **and** commits a
+    full `services` table JSON backup to the `data-backups` branch on GitHub. These two are
+    bundled onto one cron because Vercel Hobby caps a project at 2 cron jobs total and both slots
+    are already spoken for — see `docs/db-pause-recovery-plan.md` for the reasoning
   - Both handlers reject requests without a valid `Authorization: Bearer $CRON_SECRET` header

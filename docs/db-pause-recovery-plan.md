@@ -1,39 +1,41 @@
 # DB Pause — Recovery & Prevention Plan
 
-## Implementation status (2026-09-13)
+## Implementation status (2026-09-14)
 
-**Everything code-side is done** (Phases 2, 3, 4). Two commits/PRs:
+**The original incident (Phases 1–4) is fully resolved and confirmed live in production:**
 
-1. `c75d006` on branch `sergey` → **[PR #93](https://github.com/Ukranians-in-Texas/spilno-us/pull/93) into `dev`** (pushed, open, not yet merged):
-   - Both crons registered in `vercel.json`; dead `config.schedule` exports removed (Phase 2).
-   - `CRON_SECRET` guard added to `keep-alive.js` and `cleanup-images.js` (Phase 2 blocker).
-   - `keep-alive.js` throws on supabase-js `{ error }`, alerts Telegram on failure, pings
-     `HEALTHCHECK_URL` on success (Phase 3 Layer 1 + Phase 5 dead-man's-switch).
-   - `cleanup-images.test.js` updated for the auth requirement + 2 new guard tests (145 total
-     suite-wide).
-2. A follow-up commit (same branch, not yet pushed as of writing this) — Phase 3 + Phase 4:
-   - `api/services.js` — tightened the existing `console.error` to log `{ message, code, status }`
-     explicitly (it was already logging the full error, just not as legibly).
-   - `CLAUDE.md`, `docs/concepts.md`, `docs/technical-guide.md`, `docs/walkthrough.md` — removed
-     every reference to the dead `config.schedule` mechanism and the nonexistent `development`
-     branch; documented the real `vercel.json` `"crons"` array, the `CRON_SECRET` guard, and added
-     `CRON_SECRET`/`HEALTHCHECK_URL` to both env-var lists. `CLAUDE.md`'s file tree was also
-     missing `cleanup-images.js` entirely — added.
+- [PR #93](https://github.com/Ukranians-in-Texas/spilno-us/pull/93) (`sergey` → `dev`) — cron
+  registration + `CRON_SECRET` guard + `keep-alive` alerting/heartbeat. **Merged.**
+- [PR #94](https://github.com/Ukranians-in-Texas/spilno-us/pull/94) (`dev` → `main`) — shipped the
+  above to production. **Merged.** Confirmed live: Vercel's Cron Jobs dashboard lists both
+  `keep-alive` and `cleanup-images`, enabled; `curl` against both returns `401` without a bearer
+  token (proving the guard is active); `/api/services` still returns `200`.
+- You've since set `CRON_SECRET` and `HEALTHCHECK_URL` in Vercel — both crons should now actually
+  run instead of 401ing themselves.
+- A follow-up commit added `api/services.js` logging + reconciled all the docs describing the dead
+  `config.schedule` mechanism (Phase 3/4) — bundled into PR #93 (see the commits list on that PR).
 
-**Still only you can do (dashboard / decisions):**
+**Phase 5 (resilience, beyond the incident itself):**
 
-- Merge PR #93 into `dev`, then `dev` → `main` (a separate PR; `main` was 3 commits behind `dev`
-  before this, worth a glance those are fine to ship too).
-- Add `CRON_SECRET` env var in Vercel (`openssl rand -hex 32`) — until this exists, **both crons
-  401 themselves**, including the real cron. This is the one blocking step; nothing runs without it.
-- Create a healthchecks.io check, add `HEALTHCHECK_URL` in Vercel, connect its Telegram integration.
+- [x] Dead-man's-switch — done, confirmed wired (see above).
+- [x] Graceful degradation — [PR #95](https://github.com/Ukranians-in-Texas/spilno-us/pull/95)
+  (`sergey` → `dev`, open, not yet merged): `useServices.js` now caches to `localStorage` and falls
+  back to it on fetch failure. Verified in a real browser, not just unit tests.
+- [x] Data backups — same branch as PR #95, not yet its own PR as of writing this: `cleanup-images.js`
+  now also commits a full `services` table JSON snapshot to GitHub's `data-backups` branch, using a
+  new `GITHUB_TOKEN` env var you'll need to add in Vercel (fine-grained PAT, Contents: Read/write,
+  scoped to this repo). Piggybacked onto the existing weekly cron rather than a new one, since
+  you're on Vercel Hobby (2-cron cap, both slots already used).
+- [ ] Supabase Pro decision — still yours to make, not something I should decide.
+
+**Still only you can do:**
+
+- Merge PR #95 (and whatever commit follows it for the backup work) through `dev` → `main`.
+- Add `GITHUB_TOKEN` in Vercel once the backup code is live, or it'll alert on Telegram every week
+  until it exists (deliberately loud, not silent — see the whole reason this incident happened).
+- Confirm the healthchecks.io check's Telegram integration is connected (if not already).
 - Set up an UptimeRobot monitor on `/api/services` with a Telegram alert contact.
-- Not started at all: `useServices.js` graceful degradation, data backups, the Supabase Pro
-  decision — all Phase 5 items beyond the dead-man's-switch.
-
-> ⚠️ Until PR #93 merges to `main` **and** `CRON_SECRET` is set in Vercel, production is running
-> the exact same broken/unguarded code it was before this session — `cleanup-images.js` is still a
-> live, unauthenticated deletion endpoint on `main` right now.
+- Decide: stay on Hobby + crons, or upgrade to Supabase Pro ($25/mo, never pauses).
 
 ---
 
@@ -259,20 +261,36 @@ registration mechanism. Correct mechanism: crons are registered from the `"crons
 The root cause was *a silent background job nobody knew had stopped* + *a single point of failure
 with no fallback*. These items address the class, not the instance.
 
-- [ ] **Dead-man's-switch / heartbeat** — keep-alive pings an external monitor
+- [x] **Dead-man's-switch / heartbeat** — keep-alive pings an external monitor
       (healthchecks.io, free) on each successful run; if the ping doesn't arrive on schedule, **you**
       get alerted. This is the only thing that detects "the cron never fired" — a failure handler
       can't, because a job that doesn't run can't report failure.
-      **Code wired** in `keep-alive.js` (pings `HEALTHCHECK_URL`); still need the healthchecks
-      account, the `HEALTHCHECK_URL` env var, and the Telegram integration — see the setup steps
-      under Phase 3 → *Telegram alerting*.
-- [ ] **Graceful degradation** — `src/hooks/useServices.js` currently renders nothing on a fetch
-      error. Cache last-known-good services (build-time JSON snapshot, or `localStorage`) so a
-      transient Supabase blip doesn't blank the whole directory. Today Supabase is a single point
-      of total failure for the product.
-- [ ] **Back up the data** — the `services` table *is* the product, and a 90-day pause →
-      **deletion** with no export loses everything. Add a cheap periodic export (`pg_dump` or a
-      JSON dump committed to git). Free-tier backups are short-window and don't survive deletion.
+      Code wired in `keep-alive.js`; `CRON_SECRET` and `HEALTHCHECK_URL` are now set in Vercel and
+      both crons are confirmed registered and enabled (Cron Jobs dashboard). Only remaining
+      sub-step: confirm the healthchecks.io check's Telegram integration is connected, if not done
+      already.
+- [x] **Graceful degradation** — `src/hooks/useServices.js` previously rendered nothing but an
+      error banner on any fetch failure. Now caches the last successful `fetchServices` result to
+      `localStorage` per language, and falls back to it on failure instead of erroring — a
+      transient Supabase blip (or a paused DB) no longer blanks the whole directory. Verified in a
+      real browser (not just unit tests): normal load populates the cache; forcing `/api/services`
+      to fail still renders all 25 real services from cache with no error banner; clearing the
+      cache and forcing a failure still shows the proper error + retry UI (the true first-visit
+      case, where there's nothing to fall back to). 5 new tests in
+      `src/hooks/useServices.test.js`.
+- [x] **Back up the data** — the `services` table *is* the product, and a 90-day pause →
+      **deletion** with no export loses everything. Implemented as a JSON dump committed to git,
+      per your choice. `cleanup-images.js` now also fetches the full `services` table (`select *`,
+      bypassing RLS via the service key — a real backup needs unapproved rows too) and commits it
+      to a dedicated `data-backups` branch via `api/_lib/github.js`, overwriting the same
+      `backups/services.json` path each run — git history *is* the point-in-time archive, so no
+      accumulating files. Runs on the existing weekly cron rather than a new one: Vercel Hobby caps
+      a project at 2 cron jobs and both slots were already used (confirmed with you — you're on
+      Hobby). Needs a `GITHUB_TOKEN` (fine-grained PAT, Contents: Read/write, scoped to this repo)
+      as a new Vercel env var — until it's set, the backup fails and alerts Telegram every run
+      (deliberately, not silently — see the whole reason this incident happened) but never blocks
+      or is blocked by the image cleanup in the same handler. 6 new tests in
+      `api/_lib/github.test.js`, 3 more added to `api/cleanup-images.test.js`.
 - [ ] **Decide on Supabase Pro ($25/mo)** consciously — it never pauses, removing the entire
       cron-keepalive dependency. For a community production site, weigh this vs. the band-aid.
       A decision, not a default.
