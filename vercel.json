@@ -26,5 +26,9 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "crons": [
+    { "path": "/api/keep-alive", "schedule": "0 0 * * *" },
+    { "path": "/api/cleanup-images", "schedule": "0 3 * * 0" }
+  ]
 }

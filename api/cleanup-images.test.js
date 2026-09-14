@@ -18,6 +18,7 @@ beforeEach(() => {
   process.env.CLOUDINARY_CLOUD_NAME = 'testcloud';
   process.env.CLOUDINARY_API_KEY = 'key';
   process.env.CLOUDINARY_API_SECRET = 'secret';
+  process.env.CRON_SECRET = 'test-cron-secret';
   deleteCloudinaryImageById.mockClear();
   getPublicIdFromUrl.mockClear();
   sendTelegramAlert.mockClear();
@@ -29,13 +30,19 @@ afterEach(() => {
   delete process.env.CLOUDINARY_CLOUD_NAME;
   delete process.env.CLOUDINARY_API_KEY;
   delete process.env.CLOUDINARY_API_SECRET;
+  delete process.env.CRON_SECRET;
 });
 
 function makeRes() {
   const res = { _status: 200, _body: null };
   res.status = (code) => { res._status = code; return res; };
   res.json = (body) => { res._body = body; return res; };
+  res.end = () => res;
   return res;
+}
+
+function makeReq() {
+  return { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } };
 }
 
 const OLD_DATE = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
@@ -72,7 +79,7 @@ describe('orphan cleanup', () => {
     getPublicIdFromUrl.mockReturnValue('referenced1');
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(200);
     expect(deleteCloudinaryImageById).toHaveBeenCalledWith('orphan1');
@@ -87,7 +94,7 @@ describe('orphan cleanup', () => {
     mockSupabase({ data: [] });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(200);
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
@@ -103,7 +110,7 @@ describe('orphan cleanup', () => {
     getPublicIdFromUrl.mockReturnValue('kept');
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
     expect(res._body.deleted).toBe(0);
@@ -133,7 +140,7 @@ describe('pagination', () => {
     mockSupabase({ data: [] });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1][0]).toContain('cursor-abc');
@@ -153,7 +160,7 @@ describe('edge cases', () => {
     mockSupabase({ data: [] });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(200);
     expect(deleteCloudinaryImageById).toHaveBeenCalledWith('lonely');
@@ -167,7 +174,7 @@ describe('edge cases', () => {
     mockSupabase({ data: null });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(500);
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
@@ -181,7 +188,7 @@ describe('edge cases', () => {
     mockSupabase({ error: { message: 'connection refused' } });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(500);
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
@@ -194,7 +201,7 @@ describe('edge cases', () => {
     }));
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(500);
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
@@ -213,7 +220,7 @@ describe('edge cases', () => {
       .mockResolvedValueOnce(undefined);
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(res._status).toBe(200);
     expect(deleteCloudinaryImageById).toHaveBeenCalledTimes(2);
@@ -233,7 +240,7 @@ describe('telegram alerts', () => {
     mockSupabase({ error: { message: 'timeout' } });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(sendTelegramAlert).toHaveBeenCalledOnce();
     expect(sendTelegramAlert.mock.calls[0][0]).toMatch(/cleanup failed/i);
@@ -248,7 +255,7 @@ describe('telegram alerts', () => {
     deleteCloudinaryImageById.mockRejectedValueOnce(new Error('oops'));
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(sendTelegramAlert).toHaveBeenCalledOnce();
     expect(sendTelegramAlert.mock.calls[0][0]).toMatch(/partial failure/i);
@@ -262,7 +269,7 @@ describe('telegram alerts', () => {
     mockSupabase({ data: [] });
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(sendTelegramAlert).toHaveBeenCalledOnce();
     expect(sendTelegramAlert.mock.calls[0][0]).toMatch(/deleted 1/i);
@@ -277,8 +284,28 @@ describe('telegram alerts', () => {
     getPublicIdFromUrl.mockReturnValue('kept');
 
     const res = makeRes();
-    await handler({}, res);
+    await handler(makeReq(), res);
 
     expect(sendTelegramAlert).not.toHaveBeenCalled();
+  });
+});
+
+// --- auth guard ---
+
+describe('CRON_SECRET guard', () => {
+  it('rejects requests with no authorization header', async () => {
+    const res = makeRes();
+    await handler({ headers: {} }, res);
+
+    expect(res._status).toBe(401);
+    expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
+  });
+
+  it('rejects requests with the wrong secret', async () => {
+    const res = makeRes();
+    await handler({ headers: { authorization: 'Bearer wrong' } }, res);
+
+    expect(res._status).toBe(401);
+    expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
   });
 });

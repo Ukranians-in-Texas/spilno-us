@@ -492,14 +492,22 @@ Browser
 
 ### 1. The trigger (Vercel)
 
-```js
-// api/cleanup-images.js
-export const config = {
-  schedule: '0 3 * * 0',  // Sunday 3 AM UTC
-};
+```json
+// vercel.json
+"crons": [
+  { "path": "/api/cleanup-images", "schedule": "0 3 * * 0" }  // Sunday 3 AM UTC
+]
 ```
 
-Vercel reads this at deploy time and sends a `GET` request to the function at the scheduled time. The function doesn't know or care that a cron triggered it.
+Vercel reads this at deploy time and sends a `GET` request to the function at the scheduled time
+(with `Authorization: Bearer $CRON_SECRET`, which the handler checks before doing anything —
+without it this would be a public, unauthenticated image-deletion endpoint). The function itself
+doesn't know or care that a cron triggered it.
+
+> An earlier version of this file declared the schedule via `export const config = { schedule }`
+> inside `cleanup-images.js` itself. Vercel ignores that — schedules only come from `vercel.json`'s
+> `"crons"` array — so this cron (and `keep-alive`'s) never actually ran until that was fixed. See
+> `docs/db-pause-recovery-plan.md`.
 
 ### 2. List all Cloudinary images (server → Cloudinary)
 
@@ -597,4 +605,4 @@ Vercel cron (Sunday 3 AM UTC)
        └─ sendTelegramAlert                   → success count / partial failure / full failure
 ```
 
-> **Related:** [concepts.md — Cron jobs](concepts.md#cron-jobs) — cron expressions, `config.schedule`, and why cron beats event-driven cleanup. [concepts.md — Unsigned Cloudinary uploads](concepts.md#upload-is-unsigned-delete-is-signed--why-this-matters) — why orphaned images exist in the first place. [technical-guide.md §7](technical-guide.md#7-api-reference) — API reference with schedule.
+> **Related:** [concepts.md — Cron jobs](concepts.md#cron-jobs) — cron expressions, the `vercel.json` `"crons"` array, the `CRON_SECRET` guard, and why cron beats event-driven cleanup. [concepts.md — Unsigned Cloudinary uploads](concepts.md#upload-is-unsigned-delete-is-signed--why-this-matters) — why orphaned images exist in the first place. [technical-guide.md §7](technical-guide.md#7-api-reference) — API reference with schedule.
