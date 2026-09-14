@@ -95,6 +95,8 @@ The browser **never** has the service key. The admin browser client has the anon
 
 The database is a single Postgres instance managed by Supabase. There is no ORM — queries are built with `supabase-js`, which is essentially a REST client that maps method calls to Supabase's PostgREST API:
 
+> **What's an ORM?** An ORM (Object-Relational Mapper) is a library that lets you work with database rows as native objects in your language — e.g. `User.find(id)` or `user.save()` — generating the underlying SQL for you and often handling migrations, relationships, and connection pooling. Examples include Prisma, Drizzle, and TypeORM. This project deliberately skips that layer: `supabase-js` is a thin query builder over an HTTP API, not an ORM. The HTTP API on the other end is **PostgREST** — see its own section below.
+
 ```js
 // api/_lib/supabase.js — server-side client
 const { data, error } = await supabase
@@ -108,6 +110,67 @@ This is not raw SQL. The `.from().select().eq()` chain builds an HTTP request to
 There is no migration tool. Schema changes are applied manually via the Supabase SQL Editor. The table definition lives in [supabase/schema.sql](../supabase/schema.sql) as a reference, but it is not automatically applied — you copy-paste it into the SQL Editor when setting up a new environment.
 
 > **Related:** [technical-guide.md §5](technical-guide.md#5-data-architecture) — full column types and notes on data shape.
+
+---
+
+## PostgREST — the HTTP layer in front of Postgres
+
+Nothing in this project ever opens a raw Postgres connection. There's no connection string, no port 5432, no SQL driver. Every database operation — public reads, admin writes, the rate-limit count, the keep-alive ping — is an **HTTP request**. The thing that turns those HTTP requests into actual SQL is **PostgREST**, and Supabase runs it for you.
+
+### What PostgREST is
+
+PostgREST is a standalone web server that points at a Postgres database and automatically exposes it as a RESTful API. You don't write endpoint code — it reads the database's schema (tables, views, columns, types) and generates an endpoint for each table on the fly. Add a column in SQL, and it's immediately queryable over HTTP; no redeploy, no code change.
+
+Querying is expressed through the URL. Filtering, ordering, selecting columns, and pagination are all query parameters:
+
+```text
+GET /rest/v1/services?approved=eq.true&select=id,title,category&order=created_at.desc
+```
+
+PostgREST parses that, builds the equivalent `SELECT id, title, category FROM services WHERE approved = true ORDER BY created_at DESC`, runs it, and returns JSON.
+
+### Where it sits
+
+PostgREST is a layer **between the client and Postgres** — it never replaces the database, it fronts it:
+
+```text
+                        ┌──────────────────── Supabase (managed) ───────────────────┐
+                        │                                                            │
+supabase-js client  ──HTTP──►  PostgREST  ──SQL──►  Postgres  ──►  RLS policies      │
+(server or browser)     │      (REST API)           (the DB)       enforce access    │
+                        │                                                            │
+                        └────────────────────────────────────────────────────────────┘
+```
+
+Three things live inside the Supabase box, in order: PostgREST (translates HTTP → SQL), Postgres (runs the SQL), and the RLS policies (decide which rows the SQL is actually allowed to touch). The client only ever talks to the first one.
+
+In this project the client is always `supabase-js`. The `.from().select().eq()` method chain doesn't run SQL — it **builds the PostgREST URL** shown above and sends it. That's why the CLAUDE.md note calls it "essentially a REST client": it's a fluent wrapper that produces HTTP requests, not a database driver.
+
+```js
+// This chain...
+await supabase.from('services').select('id,title').eq('approved', true);
+
+// ...becomes this request:
+// GET /rest/v1/services?select=id,title&approved=eq.true
+```
+
+### How auth and RLS plug in
+
+Every PostgREST request carries an API key (and optionally a JWT) in its headers. PostgREST uses it to decide **which Postgres role** the query runs as — and that role is what RLS policies check against:
+
+- **Anon key** → runs as the `anon` role. RLS allows only `SELECT` on `approved = true` rows. This is what the admin browser client and any direct public read would use.
+- **Anon key + admin JWT** → still the authenticated role, but `auth.jwt()` now exposes `app_metadata.role = 'admin'`, so the admin RLS policy grants full access.
+- **Service key** → runs as a privileged role that **bypasses RLS entirely**. This is what the `/api/*` serverless functions use, which is why they can insert unapproved rows and count across all rows.
+
+The key insight: PostgREST doesn't enforce access rules itself — it faithfully runs the query as the role the key maps to, and **Postgres + RLS** do the enforcement one layer deeper. That's what makes it safe to expose the anon key in the browser bundle (see "Service key vs. anon key" below).
+
+### Why this architecture instead of a custom API
+
+The alternative is hand-writing a CRUD endpoint for every operation. PostgREST removes that work: the schema *is* the API. For a single-table directory, that means the admin dashboard can do all its reads and writes against Supabase directly, with zero backend code, and trust RLS to keep it secure.
+
+The project still puts one custom function in front of public reads — `/api/services` — but not because PostgREST couldn't serve them. It's for CDN caching, response shaping, and credential isolation (see "The read proxy pattern" in Part 3). Everything else rides PostgREST directly.
+
+> **Related:** [technical-guide.md §5](technical-guide.md#5-data-architecture) — data architecture. The "Service key vs. anon key" and "Row Level Security (RLS)" sections below cover the role-mapping and enforcement halves of the picture.
 
 ---
 
@@ -226,7 +289,66 @@ On the Supabase side, the Postgres function `auth.jwt()` extracts claims from th
 
 Traditional session-based auth stores a session ID in a cookie and looks up the user in a database on every request. JWTs skip that lookup — all the information is in the token itself. The server just verifies the signature (a fast cryptographic check) and reads the claims. The trade-off: you can't revoke a JWT before it expires without adding a blocklist (which reintroduces the database lookup). Supabase JWTs expire after 1 hour by default, limiting the window.
 
-> **Related:** [technical-guide.md §6.3](technical-guide.md#63-authentication--authorization) — auth implementation details and admin provisioning.
+### How the token pair gets set up
+
+The two tokens come into existence at login and are then maintained automatically by the client — the app never builds or signs a token itself. The full lifecycle:
+
+1. **Login.** The admin submits the form on `/admin/login`, which calls `supabase.auth.signInWithPassword({ email, password })`. This is an HTTPS request to Supabase's **Auth** service (a separate service from PostgREST — it's the `/auth/v1` endpoint, not `/rest/v1`).
+2. **Issuance.** Supabase Auth verifies the credentials against its own users table. On success it **signs** a new access token (JWT) with the project's secret and generates a random refresh token, returning both as a `session` object. The signing happens server-side at Supabase — the secret never reaches the browser, which is why a tampered token (e.g. someone flipping `role` to `admin`) fails the signature check.
+3. **Storage.** `supabase-js` writes the session (both tokens) into localStorage under a key like `sb-<project-ref>-auth-token`. This is what makes the login "stick" across page reloads and new tabs — on startup the client reads that key back and restores the session.
+4. **Use.** From then on, the browser client automatically attaches the access token as `Authorization: Bearer …` on every request to Supabase. Nothing in the app code passes the token around manually.
+5. **Auto-refresh.** Shortly before the access token's ~1-hour expiry, `supabase-js` silently POSTs the refresh token to Auth, gets a fresh access token (and usually a rotated refresh token) back, and overwrites the localStorage entry. This is why the admin stays logged in for days without re-entering a password, even though each individual JWT only lives an hour.
+6. **Teardown.** `supabase.auth.signOut()` clears the localStorage entry and tells Auth to invalidate the refresh token, ending the session.
+
+The key takeaway: **the project writes none of this.** It only calls `signInWithPassword` / `signOut` and reads the user from the client. Issuance, signing, storage, attachment, and refresh are all handled by Supabase Auth and `supabase-js`. The single piece of project-specific configuration is server-side — the `app_metadata.role = 'admin'` claim that gets baked into the JWT at issuance (set when the admin user is provisioned), which is what the RLS policy later checks.
+
+### What if the admin JWT is stolen?
+
+The "self-contained" property cuts both ways: because the token *is* the identity, anyone holding a valid admin JWT **is** the admin as far as Postgres is concerned. The RLS admin policy grants access purely on the `app_metadata.role = 'admin'` claim — there's no second check, no "is this really the admin" lookup. So a stolen token is full admin access: approve, edit, delete, and read every row (including unapproved submissions and internal `notes`).
+
+**How easy is it actually to steal one?** Harder than it sounds for a remote attacker, because the token never travels anywhere useful to them on its own. It lives in the admin's browser (localStorage) and is only ever sent — over HTTPS — to Supabase. To get it, an attacker needs code running in the admin's browser or access to the admin's device. The realistic vectors, roughly easiest to hardest:
+
+- **A malicious browser extension or compromised device.** Any extension with "read data on all sites" permission can read localStorage; so can malware or anyone with physical access to an unlocked machine. This is the most plausible route and the hardest to defend against from the app side — the attack surface is essentially *that one admin's browser*.
+- **Phishing.** Trick the admin into logging into a lookalike admin page, or into pasting a token. Social engineering, not a code flaw — no amount of CSP stops it.
+- **XSS (cross-site scripting).** Inject JavaScript into the real site that reads the token and ships it to the attacker. This is the classic browser-token theft vector, but it's **hard here**: React escapes rendered values by default, and the CSP's `connect-src` allowlist blocks the script from sending the stolen token to an attacker-controlled domain. An attacker would need both an injection hole *and* a way to exfiltrate within the CSP's allowed destinations. (Note the CSP does permit `'unsafe-inline'` scripts, which weakens — but doesn't remove — this protection.)
+- **Supply-chain compromise.** A malicious npm dependency that runs at build or runtime could read the token directly. Low probability, high effort, and hard to detect — the same risk every JS app carries.
+- **Network interception.** Effectively closed by HTTPS — the token is encrypted in transit and never sent over plain HTTP.
+
+The short version: there's no easy remote "grab the JWT" button. A determined attacker has to either compromise the admin's machine/browser or find a genuine XSS hole and slip past the CSP. For a single-admin app, that means the practical security boundary is the admin's own device hygiene.
+
+**How many tokens are there?** Two, and the distinction matters for theft. When the admin logs in, Supabase Auth returns a **token pair**, both kept in the same localStorage entry:
+
+| Token | Lifetime | What it's for | If stolen |
+| --- | --- | --- | --- |
+| **Access token** (the JWT) | ~1 hour | Sent as `Authorization: Bearer …` on every request; carries the `role: admin` claim that RLS checks | Admin access until it expires (≤1h) |
+| **Refresh token** | Long-lived (weeks, until used/revoked) | Exchanged for a fresh access token when the current one expires, so the admin isn't logged out hourly | Attacker can mint new access tokens indefinitely until it's revoked |
+
+So "the JWT" is really only half the story — there are two secrets sitting in the browser, and the long-lived one is the dangerous one to lose (covered next).
+
+**How long the damage lasts:** up to the token's expiry. Supabase access tokens default to 1 hour. As covered under "Why 'self-contained' matters" above, the project keeps no blocklist — Postgres trusts any token with a valid signature and doesn't check it against a list of revoked ones. So a leaked access token can't be cancelled early; it simply has to expire.
+
+**The refresh token is the bigger prize.** `supabase-js` stores *two* things in the browser (localStorage by default): the short-lived JWT *and* a long-lived **refresh token** that mints fresh JWTs on demand. Stealing the refresh token is far worse than stealing one 1-hour JWT — the attacker keeps minting valid admin tokens until that refresh token is revoked (the admin signs out, or the session is killed from the Supabase dashboard). When people ask "what if the JWT is stolen," for this stack the refresh token is the real concern.
+
+**Is one harder to steal than the other?** For the dominant theft vectors, no — they're equally exposed, because both tokens live in the **same localStorage entry** (`sb-<project-ref>-auth-token`). Anything that can read localStorage — XSS, a malicious extension, malware on the admin's device — gets the whole session object in one read, access token *and* refresh token together. There's no scenario where the localStorage attack grabs one but not the other.
+
+The only asymmetry is in transit, and it slightly favors the *access* token being easier to leak, not harder: the access token is sent on **every** request to Supabase (`Authorization: Bearer …`), while the refresh token is sent only during the occasional refresh call to the Auth endpoint. So in narrow transit-leak scenarios — a misconfigured logging proxy, a screenshared devtools Network tab, browser history — the access token has more chances to surface on its own. HTTPS closes the realistic version of this, and either way it's the *less* damaging token to lose. Bottom line: if an attacker can steal either one, they can almost certainly steal both, and the refresh token is what makes that bad.
+
+**What limits the damage here:**
+
+- **CSP** ([vercel.json](../vercel.json)) — the main browser-token theft vector is XSS, and the strict `script-src` allowlist makes injecting a token-exfiltrating script hard. This is the project's primary defense (see "HTTP headers" → Security headers).
+- **HTTPS everywhere** — rules out network sniffing of the `Authorization: Bearer` header in transit.
+- **1-hour expiry** — caps the window for a leaked *access* token.
+- **Small blast radius** — this is a public directory. No payments, no user accounts, no sensitive PII beyond submitter email/phone. Worst case is spam approvals or row/image deletion — all recoverable, none catastrophic.
+
+**The honest gaps:**
+
+- Tokens live in **localStorage**, readable by any JavaScript on the page — the trade-off for SPA convenience versus `httpOnly` cookies, which JS can't read.
+- **No revocation list** — a leaked token works until expiry by design.
+- No IP binding or device fingerprinting on the admin session.
+
+For a single-admin directory app, this is a reasonable posture: CSP + short expiry + low-value data keep the realistic risk low. If the data sensitivity ever rises, the first hardening steps would be moving tokens to `httpOnly` cookies and adding a revocation/blocklist check.
+
+> **Related:** [technical-guide.md §6.3](technical-guide.md#63-authentication--authorization) — auth implementation details and admin provisioning. [security-audit.md §9](security-audit.md) — the session-storage gaps tracked as a Low finding. [technical-guide.md §17](technical-guide.md#17-open-questions--future-work) item 10 — the same gaps in Future Work.
 
 ---
 
@@ -365,9 +487,9 @@ This is a deliberate simplicity trade-off — a proper `service_images` join tab
 
 ## Why a single table works here
 
-The homebuzz project has 9 tables with foreign keys, cascading deletes, and upsert patterns. This project has one table and no relations. The difference comes down to what each app does:
+A typical transactional app has many tables with foreign keys, cascading deletes, and upsert patterns. This project has one table and no relations. The difference comes down to what each app does:
 
-- Homebuzz is transactional — users, carts, orders, reviews. Each entity references others, and consistency matters (you can't delete a product that has orders).
+- A transactional app revolves around related entities — users, carts, orders, reviews. Each references others, and consistency matters (you can't delete a product that has orders).
 - Spilno.us is a directory — each listing is self-contained. There's nothing to join against.
 
 The trade-offs of the single-table approach:
@@ -800,6 +922,8 @@ Vercel reads the `config.schedule` at deploy time and registers the cron. The fu
 ### The two cron jobs in this project
 
 **keep-alive** (`0 0 * * *` — daily midnight UTC) — runs `SELECT id FROM services LIMIT 1`. This trivial query exists because Supabase free-tier projects are paused after a week of inactivity. One query per day keeps the project awake.
+
+Why daily and not weekly? Strictly speaking, one query inside any 7-day window is enough to prevent the pause. Daily is deliberately more frequent to leave a safety margin: if up to six consecutive runs fail to fire (a cron hiccup, a deploy gap, a Vercel incident), the project still gets pinged before the 7-day timer elapses. The query is trivial and the invocation cost is negligible, so there's no reason to run it less often — the margin is free insurance. Weekly would be too tight: a single missed run would let the project idle.
 
 **cleanup-images** (`0 3 * * 0` — Sunday 3 AM UTC) — lists all images in Cloudinary, cross-references against the `services` table, and deletes any image not referenced by a listing and older than 48 hours. Sends a Telegram alert with the count or any errors. This cleans up orphaned uploads from abandoned form sessions.
 

@@ -2,6 +2,8 @@
 
 Detailed explanation of security issues for the Ukrainians in Texas MVP.
 
+> **Note:** This is a design-time, conceptual overview — *what* each risk class is and *how* the MVP intends to handle it. The ✅ statuses below reflect the intended design, not a code-level verification. For the authoritative, file-specific record of concrete defects and their fix status, see [security-audit.md](../security-audit.md). Where the two disagree, the audit reflects current state.
+
 ---
 
 ## 1. Database Credentials

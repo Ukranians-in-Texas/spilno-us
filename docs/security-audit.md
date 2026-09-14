@@ -2,22 +2,35 @@
 
 **Date:** 2026-03-12
 
+> **Scope:** This is a point-in-time audit of concrete defects found in the code, tracked with fix status. For the *conceptual* "what could go wrong and how we mean to prevent it" overview, see [architecture/security-concerns.md](architecture/security-concerns.md). This audit is the authoritative record of current state where the two disagree.
+
 ---
 
 ## Critical
 
-### 1. Overpermissive RLS Policy
+### 1. ~~Overpermissive RLS Policy~~ — Fixed
 
 **File:** `supabase/admin-rls.sql`
 
+The policy originally keyed off `auth.role() = 'authenticated'`, so any authenticated Supabase user — not just the admin — got full read/write/delete on the `services` table:
+
 ```sql
+-- before
 create policy "Admin full access" on services
   for all
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
 ```
 
-Any authenticated Supabase user — not just your admin — gets full read/write/delete on the `services` table. Needs role-based checks (e.g., a specific admin claim or `app_metadata.role = 'admin'`), not just `authenticated`.
+**Fix (2026-03-16):** Tightened to require the `app_metadata.role = 'admin'` claim, so only the provisioned admin passes:
+
+```sql
+-- after (current)
+create policy "Admin full access" on services
+  for all
+  using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+```
 
 **OWASP:** A01 – Broken Access Control
 
@@ -145,6 +158,28 @@ POST endpoints have no CSRF token validation. An attacker could trick a user's b
 
 ---
 
+## Low
+
+### 9. Admin Session Token Storage & Lifetime
+
+> **Added 2026-06-24** — not part of the original 2026-03-12 audit pass. Documented later while writing the auth threat model; severity assessed as low for the current single-admin, public-directory scope.
+
+**Files:** `src/lib/supabaseClient.js`, Supabase Auth (managed)
+
+The admin session is a Supabase access token (JWT, ~1h) + long-lived refresh token pair, both stored in browser `localStorage` (the `sb-<project-ref>-auth-token` key) by `supabase-js`. Three gaps follow from this:
+
+- **localStorage is readable by any JS on the page** — an XSS hole or a malicious browser extension can exfiltrate both tokens in a single read. `httpOnly` cookies would put them out of JS reach.
+- **No token revocation list** — a leaked access token stays valid until it expires; there's no server-side blocklist to cancel it early.
+- **No IP binding or device fingerprinting** on the admin session.
+
+**Mitigated today by:** strict CSP (primary XSS defense), HTTPS (no in-transit sniffing), the 1-hour access-token expiry (caps a leaked JWT's window), and a small blast radius — single admin, public-directory data, no payments or sensitive PII.
+
+**Hardening options (if data sensitivity rises):** move tokens to `httpOnly` cookies; add a revocation/blocklist check. Full threat model in [concepts.md](concepts.md) → "What if the admin JWT is stolen?".
+
+**OWASP:** A07 – Identification and Authentication Failures
+
+---
+
 ## Fix Priority
 
 | Priority | Issue | File(s) | Status |
@@ -154,6 +189,7 @@ POST endpoints have no CSRF token validation. An attacker could trick a user's b
 | ~~This week~~ | ~~Add input validation (email, phone, category allowlist, max lengths)~~ | `api/submit-service.js` | Fixed |
 | ~~This week~~ | ~~Fail-closed rate limiting~~ | `api/submit-service.js` | Fixed |
 | Backlog | Add IP-based rate limiting (Vercel Firewall or Upstash) | `/api` routes | Open |
+| Backlog | Harden admin session (httpOnly cookies, revocation) — *added 2026-06-24* | `src/lib/supabaseClient.js` | Open |
 | ~~This week~~ | ~~Remove server secrets from Vite config~~ | `vite.config.js` | Fixed |
 | ~~Soon~~ | ~~Add CSP headers~~ | `vercel.json` | Fixed |
 | ~~Soon~~ | ~~Fix AdminLayout loading state order~~ | `src/pages/admin/AdminLayout.jsx` | Fixed |
