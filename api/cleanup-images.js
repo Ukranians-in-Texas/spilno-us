@@ -1,8 +1,20 @@
 import { getSupabaseAdmin } from './_lib/supabase.js';
 import { getPublicIdFromUrl, deleteCloudinaryImageById } from './_lib/cloudinary.js';
 import { sendTelegramAlert } from './_lib/telegram.js';
+import { backupServicesToGitHub } from './_lib/github.js';
 
 const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;
+
+// Vercel Hobby caps a project at 2 cron jobs, and both are already spoken for
+// (keep-alive + this one), so the weekly data backup rides along on this cron
+// rather than getting its own. It's independent of the image cleanup below —
+// wrapped in its own try/catch so neither can block or be masked by the other.
+async function backupServices() {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.from('services').select('*');
+  if (error) throw error;
+  await backupServicesToGitHub(data);
+}
 
 async function fetchAllCloudinaryResources() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -31,6 +43,13 @@ async function fetchAllCloudinaryResources() {
 export default async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end();
+  }
+
+  try {
+    await backupServices();
+  } catch (err) {
+    console.error('Services backup failed:', err);
+    await sendTelegramAlert(`⚠️ <b>Services backup failed</b>\n${err.message}`).catch(() => {});
   }
 
   try {
