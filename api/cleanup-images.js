@@ -29,6 +29,10 @@ async function fetchAllCloudinaryResources() {
 }
 
 export default async function handler(req, res) {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).end();
+  }
+
   try {
     const resources = await fetchAllCloudinaryResources();
 
@@ -80,7 +84,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Cleanup failed' });
   }
 }
-
-export const config = {
-  schedule: '0 3 * * 0',
-};
