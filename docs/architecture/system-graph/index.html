@@ -163,14 +163,16 @@ const DATA = {
     { "id": "api-telegram-webhook", "label": "POST /api/telegram-webhook", "category": "server", "path": "api/telegram-webhook.js", "detail": "Approve/Delete button callbacks (secret-verified)" },
     { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one Cloudinary image by public id (requires Supabase Bearer token)" },
 
-    { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * * — pings DB to keep it warm" },
-    { "id": "cleanup-images", "label": "cleanup-images cron", "category": "job", "path": "api/cleanup-images.js", "detail": "Vercel Cron 0 3 * * 0 — deletes orphaned Cloudinary images (48h grace period)" },
+    { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * *, CRON_SECRET-gated — pings DB to keep it warm; alerts Telegram on failure, pings healthchecks.io on success" },
+    { "id": "cleanup-images", "label": "cleanup-images cron", "category": "job", "path": "api/cleanup-images.js", "detail": "Vercel Cron 0 3 * * 0, CRON_SECRET-gated — deletes orphaned Cloudinary images (48h grace period) AND backs up the services table to GitHub" },
 
     { "id": "services-table", "label": "services table", "category": "data", "path": "supabase/schema.sql", "detail": "Supabase Postgres, RLS: public reads approved=true" },
 
     { "id": "cloudinary", "label": "Cloudinary", "category": "external", "detail": "Image hosting — unsigned upload + signed admin delete" },
     { "id": "telegram", "label": "Telegram Bot API", "category": "external", "detail": "Submission notifications + inline Approve/Delete buttons" },
-    { "id": "supabase-auth", "label": "Supabase Auth", "category": "external", "detail": "Admin email/password sign-in (anon key + RLS)" }
+    { "id": "supabase-auth", "label": "Supabase Auth", "category": "external", "detail": "Admin email/password sign-in (anon key + RLS)" },
+    { "id": "github", "label": "GitHub", "category": "external", "path": "api/_lib/github.js", "detail": "Contents API — commits a weekly services.json backup to the data-backups branch" },
+    { "id": "healthchecks", "label": "healthchecks.io", "category": "external", "detail": "Dead-man's-switch — keep-alive pings it on success; alerts if a ping is ever missed" }
   ],
   "edges": [
     { "from": "public-user", "to": "home-page" },
@@ -202,10 +204,13 @@ const DATA = {
     { "from": "api-delete-image", "to": "cloudinary" },
 
     { "from": "keep-alive", "to": "services-table" },
+    { "from": "keep-alive", "to": "telegram" },
+    { "from": "keep-alive", "to": "healthchecks" },
 
     { "from": "cleanup-images", "to": "cloudinary" },
     { "from": "cleanup-images", "to": "services-table" },
-    { "from": "cleanup-images", "to": "telegram" }
+    { "from": "cleanup-images", "to": "telegram" },
+    { "from": "cleanup-images", "to": "github" }
   ],
   "flows": [
     {
@@ -282,27 +287,31 @@ const DATA = {
     {
       "id": "keep-alive-cron",
       "name": "Keep-alive cron",
-      "description": "A daily Vercel Cron invocation runs a trivial query so Supabase doesn't idle out.",
+      "description": "A daily Vercel Cron invocation runs a trivial query so Supabase doesn't idle out. Registered in vercel.json's \"crons\" array and gated behind a CRON_SECRET bearer-token check — both were missing until 2026-09-14, which is why this cron had silently never run and Supabase auto-paused (see docs/db-pause-recovery-plan.md).",
       "steps": [
-        { "from": "keep-alive", "to": "services-table", "label": "SELECT id LIMIT 1", "detail": "Vercel Cron schedule 0 0 * * * (api/keep-alive.js)" }
+        { "from": "keep-alive", "to": "services-table", "label": "SELECT id LIMIT 1", "detail": "vercel.json \"crons\" schedule 0 0 * * *; 401s without Authorization: Bearer $CRON_SECRET; throws on supabase-js { error } instead of swallowing it" },
+        { "from": "keep-alive", "to": "healthchecks", "label": "Ping on success", "detail": "Dead-man's-switch — no-op until HEALTHCHECK_URL is set" },
+        { "from": "keep-alive", "to": "telegram", "label": "Alert on failure", "detail": "sendTelegramAlert(...) only when the DB ping throws" }
       ]
     },
     {
       "id": "cleanup-images-cron",
-      "name": "Orphan image cleanup",
-      "description": "Weekly cron lists all Cloudinary images, cross-references against services table, and deletes orphans older than 48 hours. Sends Telegram alerts on success or failure.",
+      "name": "Orphan image cleanup + services backup",
+      "description": "Weekly cron does two independent jobs on the same schedule (Vercel Hobby caps a project at 2 cron jobs, both already used by this and keep-alive): lists all Cloudinary images, cross-references against the services table, and deletes orphans older than 48 hours; separately, backs up the full services table to GitHub. CRON_SECRET-gated — this endpoint had no auth at all until 2026-09-14 and was a live, exploitable public deletion trigger (see docs/security-audit.md, Finding 10).",
       "steps": [
+        { "from": "cleanup-images", "to": "services-table", "label": "Fetch full table (backup)", "detail": "select * — independent try/catch from the cleanup logic below; runs first" },
+        { "from": "cleanup-images", "to": "github", "label": "Commit JSON snapshot", "detail": "backupServicesToGitHub() — creates the data-backups branch if missing, overwrites backups/services.json each run" },
         { "from": "cleanup-images", "to": "cloudinary", "label": "List all resources", "detail": "Cloudinary Admin API, paginated (max 500/page)" },
         { "from": "cleanup-images", "to": "services-table", "label": "Fetch all image URLs", "detail": "select images from services — aborts on query error or null data" },
         { "from": "cleanup-images", "to": "cloudinary", "label": "Delete orphaned images", "detail": "Skip images < 48h old; delete those not referenced by any service" },
-        { "from": "cleanup-images", "to": "telegram", "label": "Send alert", "detail": "Reports count deleted, or partial/full failure details" }
+        { "from": "cleanup-images", "to": "telegram", "label": "Send alert", "detail": "Reports count deleted/failed for cleanup, and separately for a backup failure — neither masks the other" }
       ]
     }
   ],
   "meta": {
-    "generatedAt": "2026-06-16",
-    "sourceCommit": "3133adf",
-    "notes": "Server _lib helpers (api/_lib/supabase.js, telegram.js, cloudinary.js) are folded into the functions that call them. 'services-table' represents the Supabase Postgres `services` table; 'supabase-auth' is the same Supabase project's Auth service, split out so the admin-login flow reads clearly. Public reads go only through /api/services; the admin dashboard talks to Supabase directly with the anon key under RLS. The local Vite dev middleware reimplements /api/submit-service with looser validation — this map reflects the authoritative deployed api/*.js handlers."
+    "generatedAt": "2026-09-14",
+    "sourceCommit": "96ed1d9",
+    "notes": "Server _lib helpers (api/_lib/supabase.js, telegram.js, cloudinary.js, github.js) are folded into the functions that call them. 'services-table' represents the Supabase Postgres `services` table; 'supabase-auth' is the same Supabase project's Auth service, split out so the admin-login flow reads clearly. Public reads go only through /api/services; the admin dashboard talks to Supabase directly with the anon key under RLS. The local Vite dev middleware reimplements /api/submit-service with looser validation — this map reflects the authoritative deployed api/*.js handlers. Both crons were fixed 2026-09-14: they'd never actually run (dead config.schedule export, ignored by Vercel) and cleanup-images had no auth at all — see docs/db-pause-recovery-plan.md and docs/security-audit.md (Findings 10/10a)."
   }
 };
 

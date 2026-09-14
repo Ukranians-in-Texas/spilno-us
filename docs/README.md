@@ -25,7 +25,7 @@ These four — `technical-guide`, `concepts`, `walkthrough`, `testing` — are t
 - [walkthrough.md](walkthrough.md) — Narrative end-to-end traces of each major flow (browse, submit, approve) with annotated code excerpts.
 - [testing.md](testing.md) — Test-suite guide: unit vs. component vs. E2E, how to run (Vitest + Playwright), and how to add tests.
 - [manual-testing.md](manual-testing.md) — Manual QA checklist for UI flows, auth, security headers, and edge cases impractical to unit-test.
-- [rate-limiting.md](rate-limiting.md) — Current submission/abuse protections: email rate limit (fails closed), authenticated `delete-image`, and the orphaned-image cleanup cron — with their known limits.
+- [rate-limiting.md](rate-limiting.md) — Current submission/abuse protections: email rate limit (fails closed), authenticated `delete-image`, and the `CRON_SECRET`-gated cleanup/backup and keep-alive crons — with their known limits.
 - [security-audit.md](security-audit.md) — Security audit (2026-03-12) with findings by severity; fixed items struck through and dated.
 
 ## architecture/

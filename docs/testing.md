@@ -48,18 +48,19 @@ Both run together with `npm test`. The environment is set globally to `jsdom` in
 
 **Config:** [vitest.config.js](../vitest.config.js) — merges into the Vite config, excludes `tests/e2e/`.
 
-**What's covered (111 tests, 8 files):**
+**What's covered (122 tests, 9 files):**
 
-All external services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` — no real network or database calls.
+All external services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` — no real network or database calls.
 
 | File | Tests | Covers |
 | ---- | ----- | ------ |
 | `api/submit-service.test.js` | 32 | All validation rules, honeypot (silent 200), rate limiting (including fail-closed on DB error), image URL filtering, success/error paths |
 | `api/telegram-webhook.test.js` | 15 | Secret header check, UUID/action validation, approve (idempotent), delete (with Cloudinary cleanup), error paths |
-| `api/cleanup-images.test.js` | 13 | Orphan detection, 48h grace period, pagination, empty/null data handling, Cloudinary failures, Telegram alerts |
+| `api/cleanup-images.test.js` | 18 | Orphan detection, 48h grace period, pagination, empty/null data handling, Cloudinary failures, Telegram alerts, `CRON_SECRET` guard, services-table backup (success, failure alert, independent of cleanup outcome) |
 | `api/delete-image.test.js` | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, publicId validation, Cloudinary success/error |
 | `api/_lib/telegram.test.js` | 11 | Message building, HTML escaping (`&<>"`), notification payload with inline keyboard |
 | `api/_lib/cloudinary.test.js` | 8 | Public ID extraction from URL, single delete, CSV batch delete |
+| `api/_lib/github.test.js` | 6 | Missing-token guard, branch create-if-missing, sha-aware overwrite (update vs. create), commit failure |
 | `src/utils/validation.test.js` | 16 | `formatPhone`, `isValidURL`, `getSafeHref`, `getDomain` |
 | `src/utils/imageUrl.test.js` | 6 | `getCloudinaryPublicId`, `parseImageUrls` (transform injection) |
 
@@ -94,7 +95,7 @@ Node 26 added an experimental `globalThis.localStorage` property that is `undefi
 
 The polyfill in [tests/setup.js](../tests/setup.js) detects this and assigns a simple in-memory `localStorage` to `globalThis`. If you upgrade Node or jsdom and tests start failing with `Cannot read properties of undefined (reading 'clear')` or `Cannot read properties of undefined (reading 'getItem')`, this is the place to look.
 
-**What's covered (32 tests, 5 files):**
+**What's covered (37 tests, 6 files):**
 
 | File | Tests | Covers |
 | ---- | ----- | ------ |
@@ -103,6 +104,7 @@ The polyfill in [tests/setup.js](../tests/setup.js) detects this and assigns a s
 | `src/components/ServiceList/ServiceList.test.jsx` | 5 | Loading skeletons, error state with retry button, empty state message, service cards render, section title |
 | `src/context/ThemeContext.test.jsx` | 5 | Default light, toggle adds/removes `dark` class on `<html>`, localStorage persistence and restore |
 | `src/context/LanguageContext.test.jsx` | 6 | Default English, `t()` translation, toggle EN↔UA, localStorage persistence and restore, missing key returns the key |
+| `src/hooks/useServices.test.js` | 5 | Success caches to `localStorage` per language; failure falls back to that cache instead of erroring; failure with no cache still errors; refetch preserves the fallback; per-language cache isolation |
 
 ### Adding a component test
 
@@ -205,7 +207,7 @@ These paths exist in code but have zero or minimal test coverage:
 | ---- | ----------- | ------------ |
 | Admin dashboard (approve/delete/edit) | Component + E2E | Queue renders pending items; approve flips state; delete removes row + images; edit panel saves changes |
 | `AdminServicesPage` (search, filter, EditPanel) | Component | Table filtering, status toggle, slide-over edit panel, drag-to-reorder images |
-| `useServices` hook | Component | Fetch lifecycle, cancellation on unmount, language change re-fetch, error state |
+| `useServices` hook — cancellation on unmount | Component | Now covered for success/failure/cache/language (`src/hooks/useServices.test.js`); unmount-cancellation specifically is still untested |
 | `categories.js` helpers | Unit | `findParentCategory`, `getAllSubcategories` — pure functions, easy wins |
 | `api/services.js`, `api/keep-alive.js` | Unit | Handler behavior (currently untested, though simple) |
 | Image upload flow in AddServiceForm | E2E | File selection, upload progress, removal, max-5 limit |
