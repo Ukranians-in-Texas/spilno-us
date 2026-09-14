@@ -68,7 +68,12 @@ flowchart TD
     Cleanup -->|list resources| Cloudinary
     Cleanup -->|select images| DB
     Cleanup -->|alert| Bot
+    Cleanup -->|select * + commit JSON| GitHub[GitHub: data-backups branch]
 ```
+
+> `cleanup-images.js` does two unrelated jobs on the same schedule — orphan-image cleanup and a
+> full `services` table backup — because Vercel Hobby caps a project at 2 cron jobs and both are
+> already used by this and `keep-alive`. See §11 and `docs/db-pause-recovery-plan.md`.
 
 ### Representative end-to-end flow — a new submission
 
@@ -90,11 +95,13 @@ spilno-us/
 │   ├── _lib/
 │   │   ├── supabase.js        # getSupabaseAdmin() + fetchApprovedServices()
 │   │   ├── telegram.js        # buildMessageText() + sendTelegramNotification()
-│   │   └── cloudinary.js      # delete by public_id / delete CSV of image URLs
+│   │   ├── cloudinary.js      # delete by public_id / delete CSV of image URLs
+│   │   └── github.js          # backupServicesToGitHub() — commits services.json to data-backups
 │   ├── services.js            # GET  — public read of approved services (cached)
 │   ├── submit-service.js      # POST — validate + rate-limit + insert + notify
 │   ├── delete-image.js        # POST — delete one Cloudinary image by publicId (auth required)
-│   ├── cleanup-images.js      # GET  — weekly cron, deletes orphaned Cloudinary images
+│   ├── cleanup-images.js      # GET  — weekly cron; deletes orphaned Cloudinary images AND
+│   │                          #        backs up the services table to GitHub (piggybacked)
 │   ├── telegram-webhook.js    # POST — handle Approve/Delete button callbacks
 │   ├── keep-alive.js          # GET  — daily cron, pings DB to keep project warm
 │   └── *.test.js              # Vitest unit tests (mocks for Supabase/Telegram/Cloudinary)
@@ -282,7 +289,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | Method | Path | Schedule | Purpose |
 | --- | --- | --- | --- |
 | GET | `/api/keep-alive` | `0 0 * * *` (daily 00:00 UTC) | Pings DB (`select id limit 1`) to keep the Supabase project from idling. |
-| GET | `/api/cleanup-images` | `0 3 * * 0` (Sunday 03:00 UTC) | Deletes orphaned Cloudinary images (48h grace period). Sends Telegram alerts. |
+| GET | `/api/cleanup-images` | `0 3 * * 0` (Sunday 03:00 UTC) | Deletes orphaned Cloudinary images (48h grace period) **and** commits a full `services` JSON backup to GitHub's `data-backups` branch. Sends Telegram alerts on either failure. |
 
 > Both crons are registered in [vercel.json](../vercel.json)'s `"crons"` array — **not** via any
 > `config.schedule` export in the function file (Vercel ignores that; see
@@ -318,16 +325,18 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 > See [testing.md](testing.md) for how to run tests, how to add new ones, and a guide to the coverage gaps.
 
-**143 unit/component tests across 13 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
+**159 unit/component tests across 15 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
 
 | File | Tests | Covers |
 | --- | --- | --- |
-| [api/submit-service.test.js](../api/submit-service.test.js) | 28 | All validation rules, honeypot, rate limiting (incl. fail-closed), image filtering, success/error paths |
+| [api/submit-service.test.js](../api/submit-service.test.js) | 32 | All validation rules, honeypot, rate limiting (incl. fail-closed), image filtering, success/error paths |
 | [api/delete-image.test.js](../api/delete-image.test.js) | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, Cloudinary success/error |
-| [api/cleanup-images.test.js](../api/cleanup-images.test.js) | 13 | Orphan deletion, 48h grace period, pagination, empty/null data, Cloudinary failures, Telegram alerts |
+| [api/cleanup-images.test.js](../api/cleanup-images.test.js) | 18 | Orphan deletion, 48h grace period, pagination, empty/null data, Cloudinary failures, Telegram alerts, `CRON_SECRET` guard, services backup |
 | [api/telegram-webhook.test.js](../api/telegram-webhook.test.js) | 15 | Secret check, UUID/action validation, approve/delete, idempotency, errors |
 | [api/_lib/telegram.test.js](../api/_lib/telegram.test.js) | 11 | Message building, escaping, notification payload |
 | [api/_lib/cloudinary.test.js](../api/_lib/cloudinary.test.js) | 8 | Public-id extraction, single/CSV delete |
+| [api/_lib/github.test.js](../api/_lib/github.test.js) | 6 | Missing-token guard, branch create-if-missing, sha-aware overwrite, commit failure |
+| [src/hooks/useServices.test.js](../src/hooks/useServices.test.js) | 5 | Success caches to `localStorage`; failure falls back to cache or errors; per-language isolation |
 | [src/utils/validation.test.js](../src/utils/validation.test.js) | 16 | `formatPhone`, `isValidURL`, `getSafeHref`, `getDomain` |
 | [src/utils/imageUrl.test.js](../src/utils/imageUrl.test.js) | 6 | `getCloudinaryPublicId`, `parseImageUrls` |
 
@@ -397,6 +406,7 @@ npm run dev              # Vite dev server with local /api middleware
 | `TELEGRAM_WEBHOOK_SECRET` | server | Optional* | **Yes** | Verifies incoming Telegram webhook calls |
 | `CRON_SECRET` | server | Yes | **Yes** | Vercel auto-sends this as `Authorization: Bearer <value>` on cron invocations; both cron handlers 401 without it |
 | `HEALTHCHECK_URL` | server | Optional | No | healthchecks.io ping URL; `keep-alive` pings it on success as a dead-man's-switch. No-op if unset |
+| `GITHUB_TOKEN` | server | Optional | **Yes** | Fine-grained PAT (Contents: Read/write) on this repo; `cleanup-images.js` uses it to commit a weekly `services` backup. Missing token fails loudly via Telegram, doesn't block image cleanup |
 
 \* Telegram vars are optional in the sense that the code no-ops without them, but they are required for the approval workflow to function in production.
 
@@ -412,6 +422,8 @@ npm run dev              # Vite dev server with local /api middleware
 - **Cron:** `keep-alive` (daily, `0 0 * * *`) and `cleanup-images` (weekly, `0 3 * * 0`) are both
   registered in [vercel.json](../vercel.json)'s `"crons"` array and gated behind a `CRON_SECRET`
   bearer-token check in each handler — see [concepts.md — Cron jobs](concepts.md#cron-jobs).
+  `cleanup-images` also commits a weekly `services` table backup to GitHub (piggybacked onto this
+  cron rather than a third one, since Hobby caps a project at 2).
 - **Security headers / CSP:** set in `vercel.json` (see §14).
 - **Env:** all server + client vars set in the Vercel dashboard.
 - **Deploy-time gotcha:** `vite preview` and any non-Vercel host won't have the `/api` functions; the SPA then needs `VITE_API_BASE_URL` pointing at a host that does.

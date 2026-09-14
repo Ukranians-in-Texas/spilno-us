@@ -8,11 +8,15 @@ vi.mock('./_lib/cloudinary.js', () => ({
 vi.mock('./_lib/telegram.js', () => ({
   sendTelegramAlert: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('./_lib/github.js', () => ({
+  backupServicesToGitHub: vi.fn().mockResolvedValue(undefined),
+}));
 
 import handler from './cleanup-images.js';
 import { getSupabaseAdmin } from './_lib/supabase.js';
 import { getPublicIdFromUrl, deleteCloudinaryImageById } from './_lib/cloudinary.js';
 import { sendTelegramAlert } from './_lib/telegram.js';
+import { backupServicesToGitHub } from './_lib/github.js';
 
 beforeEach(() => {
   process.env.CLOUDINARY_CLOUD_NAME = 'testcloud';
@@ -22,6 +26,8 @@ beforeEach(() => {
   deleteCloudinaryImageById.mockClear();
   getPublicIdFromUrl.mockClear();
   sendTelegramAlert.mockClear();
+  backupServicesToGitHub.mockClear();
+  backupServicesToGitHub.mockResolvedValue(undefined);
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -55,12 +61,24 @@ function mockCloudinaryList(resources, nextCursor = null) {
   });
 }
 
-function mockSupabase({ data = [], error = null } = {}) {
+// Supabase's query builder is "thenable" at every stage — `select(...)` can be
+// awaited directly (as the backup's `select('*')` does) or chained further with
+// `.not(...)` (as the cleanup pass does). This mock supports both shapes, and
+// lets a test give the backup query different data/error than the cleanup query.
+function thenable(result) {
+  return {
+    not: () => thenable(result),
+    then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+  };
+}
+
+function mockSupabase({ data = [], error = null, backupData = data, backupError = error } = {}) {
   getSupabaseAdmin.mockReturnValue({
     from: () => ({
-      select: () => ({
-        not: () => Promise.resolve({ data, error }),
-      }),
+      select: (columns) =>
+        columns === '*'
+          ? thenable({ data: backupData, error: backupError })
+          : thenable({ data, error }),
     }),
   });
 }
@@ -237,7 +255,7 @@ describe('telegram alerts', () => {
       { public_id: 'img1', created_at: OLD_DATE },
     ]);
     vi.stubGlobal('fetch', fetchMock);
-    mockSupabase({ error: { message: 'timeout' } });
+    mockSupabase({ error: { message: 'timeout' }, backupData: [], backupError: null });
 
     const res = makeRes();
     await handler(makeReq(), res);
@@ -307,5 +325,46 @@ describe('CRON_SECRET guard', () => {
 
     expect(res._status).toBe(401);
     expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
+  });
+});
+
+// --- services backup ---
+
+describe('services backup', () => {
+  it('backs up the full services table on every run', async () => {
+    const fetchMock = mockCloudinaryList([]);
+    vi.stubGlobal('fetch', fetchMock);
+    const allServices = [{ id: '1', images: null }, { id: '2', images: 'https://res.cloudinary.com/x/image/upload/v1/a.jpg' }];
+    mockSupabase({ data: [], backupData: allServices });
+
+    const res = makeRes();
+    await handler(makeReq(), res);
+
+    expect(backupServicesToGitHub).toHaveBeenCalledWith(allServices);
+    expect(res._status).toBe(200);
+  });
+
+  it('alerts on backup failure but still runs image cleanup', async () => {
+    const fetchMock = mockCloudinaryList([]);
+    vi.stubGlobal('fetch', fetchMock);
+    mockSupabase({ data: [] });
+    backupServicesToGitHub.mockRejectedValueOnce(new Error('GITHUB_TOKEN not configured'));
+
+    const res = makeRes();
+    await handler(makeReq(), res);
+
+    expect(sendTelegramAlert).toHaveBeenCalledWith(expect.stringMatching(/services backup failed/i));
+    expect(res._status).toBe(200);
+  });
+
+  it('does not let a cleanup failure skip or mask the backup', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: false, status: 401 }));
+    mockSupabase({ data: [] });
+
+    const res = makeRes();
+    await handler(makeReq(), res);
+
+    expect(backupServicesToGitHub).toHaveBeenCalled();
+    expect(res._status).toBe(500);
   });
 });
