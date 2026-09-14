@@ -259,17 +259,23 @@ registration mechanism. Correct mechanism: crons are registered from the `"crons
 The root cause was *a silent background job nobody knew had stopped* + *a single point of failure
 with no fallback*. These items address the class, not the instance.
 
-- [ ] **Dead-man's-switch / heartbeat** — keep-alive pings an external monitor
+- [x] **Dead-man's-switch / heartbeat** — keep-alive pings an external monitor
       (healthchecks.io, free) on each successful run; if the ping doesn't arrive on schedule, **you**
       get alerted. This is the only thing that detects "the cron never fired" — a failure handler
       can't, because a job that doesn't run can't report failure.
-      **Code wired** in `keep-alive.js` (pings `HEALTHCHECK_URL`); still need the healthchecks
-      account, the `HEALTHCHECK_URL` env var, and the Telegram integration — see the setup steps
-      under Phase 3 → *Telegram alerting*.
-- [ ] **Graceful degradation** — `src/hooks/useServices.js` currently renders nothing on a fetch
-      error. Cache last-known-good services (build-time JSON snapshot, or `localStorage`) so a
-      transient Supabase blip doesn't blank the whole directory. Today Supabase is a single point
-      of total failure for the product.
+      Code wired in `keep-alive.js`; `CRON_SECRET` and `HEALTHCHECK_URL` are now set in Vercel and
+      both crons are confirmed registered and enabled (Cron Jobs dashboard). Only remaining
+      sub-step: confirm the healthchecks.io check's Telegram integration is connected, if not done
+      already.
+- [x] **Graceful degradation** — `src/hooks/useServices.js` previously rendered nothing but an
+      error banner on any fetch failure. Now caches the last successful `fetchServices` result to
+      `localStorage` per language, and falls back to it on failure instead of erroring — a
+      transient Supabase blip (or a paused DB) no longer blanks the whole directory. Verified in a
+      real browser (not just unit tests): normal load populates the cache; forcing `/api/services`
+      to fail still renders all 25 real services from cache with no error banner; clearing the
+      cache and forcing a failure still shows the proper error + retry UI (the true first-visit
+      case, where there's nothing to fall back to). 5 new tests in
+      `src/hooks/useServices.test.js`.
 - [ ] **Back up the data** — the `services` table *is* the product, and a 90-day pause →
       **deletion** with no export loses everything. Add a cheap periodic export (`pg_dump` or a
       JSON dump committed to git). Free-tier backups are short-window and don't survive deletion.
