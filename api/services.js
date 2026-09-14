@@ -16,7 +16,11 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     return res.status(200).json(services);
   } catch (error) {
-    console.error('Error fetching services:', error);
+    console.error('Error fetching services:', {
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+    });
     return res.status(500).json({ error: 'Failed to fetch services' });
   }
 }
