@@ -284,6 +284,13 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | GET | `/api/keep-alive` | `0 0 * * *` (daily 00:00 UTC) | Pings DB (`select id limit 1`) to keep the Supabase project from idling. |
 | GET | `/api/cleanup-images` | `0 3 * * 0` (Sunday 03:00 UTC) | Deletes orphaned Cloudinary images (48h grace period). Sends Telegram alerts. |
 
+> Both crons are registered in [vercel.json](../vercel.json)'s `"crons"` array — **not** via any
+> `config.schedule` export in the function file (Vercel ignores that; see
+> [concepts.md — Cron jobs](concepts.md#cron-jobs) for the incident this caused). Both handlers
+> also reject any request whose `Authorization` header isn't `Bearer $CRON_SECRET`, which Vercel
+> sends automatically on cron invocations — this is load-bearing for `cleanup-images`, which
+> deletes Cloudinary images and would otherwise be a public deletion endpoint.
+>
 > Admin reads/writes to the `services` table go **directly** to Supabase from the browser (anon key + JWT + RLS), not through `/api`.
 
 ---
@@ -388,6 +395,8 @@ npm run dev              # Vite dev server with local /api middleware
 | `TELEGRAM_BOT_TOKEN` | server | Optional* | **Yes** | Bot token for notify + webhook calls |
 | `TELEGRAM_CHAT_ID` | server | Optional* | No | Destination chat for notifications |
 | `TELEGRAM_WEBHOOK_SECRET` | server | Optional* | **Yes** | Verifies incoming Telegram webhook calls |
+| `CRON_SECRET` | server | Yes | **Yes** | Vercel auto-sends this as `Authorization: Bearer <value>` on cron invocations; both cron handlers 401 without it |
+| `HEALTHCHECK_URL` | server | Optional | No | healthchecks.io ping URL; `keep-alive` pings it on success as a dead-man's-switch. No-op if unset |
 
 \* Telegram vars are optional in the sense that the code no-ops without them, but they are required for the approval workflow to function in production.
 
@@ -397,13 +406,17 @@ npm run dev              # Vite dev server with local /api middleware
 
 - **Platform:** Vercel. Frontend (Vite SPA) + serverless functions in `/api`.
 - **Build command:** `vite build` (`npm run build`). SPA routing via [vercel.json](../vercel.json) rewrite `"/(.*)" → "/index.html"`.
-- **Branch flow:** Per [CLAUDE.md](../CLAUDE.md), push to `main` auto-deploys. (Current working branch is `feature/mvp-implementation`; the repo's main branch for PRs is `development`.) **[Assumption]** production tracks `main`; confirm the Vercel project's production branch.
-- **Cron:** `keep-alive` runs daily (`0 0 * * *`) via the `config.schedule` export in [api/keep-alive.js](../api/keep-alive.js).
+- **Branch flow:** Per [CLAUDE.md](../CLAUDE.md), push to `main` auto-deploys. Confirmed (not an
+  assumption) — Vercel's production branch is `main`. There is no `development` branch; day-to-day
+  work merges up through `dev` → `main` via PRs.
+- **Cron:** `keep-alive` (daily, `0 0 * * *`) and `cleanup-images` (weekly, `0 3 * * 0`) are both
+  registered in [vercel.json](../vercel.json)'s `"crons"` array and gated behind a `CRON_SECRET`
+  bearer-token check in each handler — see [concepts.md — Cron jobs](concepts.md#cron-jobs).
 - **Security headers / CSP:** set in `vercel.json` (see §14).
 - **Env:** all server + client vars set in the Vercel dashboard.
 - **Deploy-time gotcha:** `vite preview` and any non-Vercel host won't have the `/api` functions; the SPA then needs `VITE_API_BASE_URL` pointing at a host that does.
 
-> See [concepts.md — vercel.json](concepts.md#verceljson--what-it-does-and-why) for the SPA rewrite rule and header config, and [Cron jobs](concepts.md#cron-jobs) for how `config.schedule` exports work and cron expression syntax.
+> See [concepts.md — vercel.json](concepts.md#verceljson--what-it-does-and-why) for the SPA rewrite rule and header config, and [Cron jobs](concepts.md#cron-jobs) for how the `"crons"` array and `CRON_SECRET` guard work, plus cron expression syntax.
 
 ---
 

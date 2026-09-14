@@ -2,26 +2,38 @@
 
 ## Implementation status (2026-09-13)
 
-**Code changes made so far — `api/keep-alive.js`, `api/cleanup-images.js`, `vercel.json`,
-`api/cleanup-images.test.js`:**
+**Everything code-side is done** (Phases 2, 3, 4). Two commits/PRs:
 
-- ✅ `keep-alive.js` throws on supabase-js `{ error }` (a paused/unreachable DB used to slip past the catch).
-- ✅ `keep-alive.js` sends `sendTelegramAlert(...)` on failure (Phase 3 / Layer 1).
-- ✅ `keep-alive.js` pings `HEALTHCHECK_URL` on success — dead-man's-switch hook (Phase 5); no-op until the env var is set.
-- ✅ Both crons registered in `vercel.json`; dead `config.schedule` exports removed (Phase 2).
-- ✅ `CRON_SECRET` guard added to both `keep-alive.js` and `cleanup-images.js` (Phase 2 blocker).
-- Tests: 147 passing. **Still not committed** — everything above is uncommitted working-tree
-  changes on branch `sergey`.
+1. `c75d006` on branch `sergey` → **[PR #93](https://github.com/Ukranians-in-Texas/spilno-us/pull/93) into `dev`** (pushed, open, not yet merged):
+   - Both crons registered in `vercel.json`; dead `config.schedule` exports removed (Phase 2).
+   - `CRON_SECRET` guard added to `keep-alive.js` and `cleanup-images.js` (Phase 2 blocker).
+   - `keep-alive.js` throws on supabase-js `{ error }`, alerts Telegram on failure, pings
+     `HEALTHCHECK_URL` on success (Phase 3 Layer 1 + Phase 5 dead-man's-switch).
+   - `cleanup-images.test.js` updated for the auth requirement + 2 new guard tests (145 total
+     suite-wide).
+2. A follow-up commit (same branch, not yet pushed as of writing this) — Phase 3 + Phase 4:
+   - `api/services.js` — tightened the existing `console.error` to log `{ message, code, status }`
+     explicitly (it was already logging the full error, just not as legibly).
+   - `CLAUDE.md`, `docs/concepts.md`, `docs/technical-guide.md`, `docs/walkthrough.md` — removed
+     every reference to the dead `config.schedule` mechanism and the nonexistent `development`
+     branch; documented the real `vercel.json` `"crons"` array, the `CRON_SECRET` guard, and added
+     `CRON_SECRET`/`HEALTHCHECK_URL` to both env-var lists. `CLAUDE.md`'s file tree was also
+     missing `cleanup-images.js` entirely — added.
 
-**Not started:** `api/services.js` error logging (Phase 3), all doc fixes (Phase 4),
-graceful degradation / backup / Pro decision (Phase 5), and every **dashboard** step (setting the
-`CRON_SECRET` and `HEALTHCHECK_URL` env vars in Vercel, UptimeRobot, healthchecks account). Also
-nothing has been committed, pushed, or merged toward `main` yet — the fix isn't live in production.
+**Still only you can do (dashboard / decisions):**
 
-> ⚠️ Until `CRON_SECRET` is set in Vercel, the guard fails closed for *everyone*, including the
-> real cron — so even after this ships, both crons will 401 until that env var exists (dashboard
-> step, see below). And until this reaches `main`, `cleanup-images.js` stays live and unguarded on
-> prod exactly as it is today.
+- Merge PR #93 into `dev`, then `dev` → `main` (a separate PR; `main` was 3 commits behind `dev`
+  before this, worth a glance those are fine to ship too).
+- Add `CRON_SECRET` env var in Vercel (`openssl rand -hex 32`) — until this exists, **both crons
+  401 themselves**, including the real cron. This is the one blocking step; nothing runs without it.
+- Create a healthchecks.io check, add `HEALTHCHECK_URL` in Vercel, connect its Telegram integration.
+- Set up an UptimeRobot monitor on `/api/services` with a Telegram alert contact.
+- Not started at all: `useServices.js` graceful degradation, data backups, the Supabase Pro
+  decision — all Phase 5 items beyond the dead-man's-switch.
+
+> ⚠️ Until PR #93 merges to `main` **and** `CRON_SECRET` is set in Vercel, production is running
+> the exact same broken/unguarded code it was before this session — `cleanup-images.js` is still a
+> live, unauthenticated deletion endpoint on `main` right now.
 
 ---
 
@@ -157,8 +169,10 @@ mechanism — both false. Must be corrected (see Phase 4):
 
 ## Phase 3 — Observability (catch it next time)
 
-- [ ] Surface the real error in `api/services.js` — log `error.message`/`error.code` (don't only
-      return the generic string) so an outside `curl` / log shows the actual cause.
+- [x] Surface the real error in `api/services.js` — it already called `console.error` with the
+      full error object; tightened it to log `{ message, code, status }` explicitly so the cause
+      is visible in the Vercel log line itself, not just in an expandable object. (The response
+      body still returns the generic string on purpose — no internal detail leaks to the client.)
 - [x] Make `keep-alive` **alert on failure**: reuse the existing Telegram wiring
       (`api/_lib/telegram.js`) to send a message when the ping throws, instead of silently
       returning 500. A cron that fails quietly is how we got here.
@@ -211,7 +225,8 @@ mechanism covers both failure modes:
 > too would double-notify). The ping is a no-op until `HEALTHCHECK_URL` is set, so it's safe to
 > deploy before the check exists.
 >
-> Add `HEALTHCHECK_URL` to the env-var lists in `CLAUDE.md` / `docs/technical-guide.md` (Phase 4).
+> [x] Added `HEALTHCHECK_URL` and `CRON_SECRET` to the env-var lists in `CLAUDE.md` /
+> `docs/technical-guide.md` (Phase 4).
 
 ---
 
@@ -221,15 +236,20 @@ Reconcile every doc that describes the crons as working / describes `config.sche
 registration mechanism. Correct mechanism: crons are registered from the `"crons"` array in
 `vercel.json`; the function file is a plain handler with no schedule.
 
-- [ ] `CLAUDE.md` — keep-alive line (~144): note schedule lives in `vercel.json`, not the function.
-- [ ] `docs/concepts.md` — remove the "defined on the `development` branch" claim (~868, no such
-      branch); rewrite the "How Vercel runs cron jobs" section (~902-920) so it shows the
-      `vercel.json` `"crons"` array, not `config.schedule`.
-- [ ] `docs/technical-guide.md` — fix ~401 ("via the `config.schedule` export") and the
-      §7 API-reference / cross-ref lines (~284, ~406).
-- [ ] `docs/walkthrough.md` — fix the cleanup-cron registration description (~502, ~600).
-- [ ] `docs/architecture/system-graph/{data.json,index.html}` — details already say
-      `Vercel Cron 0 0 * * *`; just confirm they don't reference `config.schedule`.
+- [x] `CLAUDE.md` — keep-alive/cleanup-images lines: note both crons live in `vercel.json`, added
+      `cleanup-images.js` to the file tree (it was missing entirely), added `CRON_SECRET` guard
+      note, added `CRON_SECRET`/`HEALTHCHECK_URL` to the env var list.
+- [x] `docs/concepts.md` — removed the "defined on the `development` branch" claim (no such
+      branch exists); rewrote "How Vercel runs cron jobs" to show the real `vercel.json` `"crons"`
+      array and the `CRON_SECRET` guard, with a callout explaining why `config.schedule` is dead
+      code and what it caused.
+- [x] `docs/technical-guide.md` — fixed the Deployment section (branch-flow assumption is now
+      confirmed fact; cron line no longer references `config.schedule`), the §7 cron table note,
+      and added `CRON_SECRET`/`HEALTHCHECK_URL` to the env var table.
+- [x] `docs/walkthrough.md` — fixed the cleanup-cron trigger section (was showing the dead
+      `config.schedule` snippet) and the cron jobs cross-reference.
+- [x] `docs/architecture/system-graph/{data.json,index.html}` — confirmed: no `config.schedule`
+      references present, nothing to change.
 - [ ] (Optional) Add a short "Incident: DB paused 2026-06" note so the failure mode is recorded.
 
 ---

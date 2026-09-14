@@ -63,7 +63,8 @@ api/                # Vercel serverless functions
   submit-service.js # POST — submit new service listing
   delete-image.js   # DELETE — remove an image from Cloudinary
   telegram-webhook.js # POST — Telegram Approve/Delete button callbacks
-  keep-alive.js     # GET — daily cron, pings DB to keep Supabase warm
+  keep-alive.js     # GET — daily cron (vercel.json), pings DB to keep Supabase warm
+  cleanup-images.js # GET — weekly cron (vercel.json), deletes orphaned Cloudinary images
   _lib/supabase.js  # Supabase client + fetchApprovedServices
   _lib/telegram.js  # buildMessageText + sendTelegramNotification
   _lib/cloudinary.js # delete by public_id / delete CSV of image URLs
@@ -129,6 +130,8 @@ Server-side (Vercel only, never in client):
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `TELEGRAM_WEBHOOK_SECRET`
+- `CRON_SECRET` — required for the `keep-alive` / `cleanup-images` crons to run; both 401 without it
+- `HEALTHCHECK_URL` — optional; `keep-alive` pings it on success as a dead-man's-switch
 
 ## Images
 
@@ -141,4 +144,9 @@ Server-side (Vercel only, never in client):
 - Push to `main` → auto-deploys to Vercel
 - Set env vars in Vercel dashboard
 - `vercel.json` rewrites all routes to `/index.html` for SPA routing
-- Daily `keep-alive` cron (`api/keep-alive.js`, `0 0 * * *`) pings the DB to keep Supabase from idling
+- Both crons are registered in `vercel.json`'s `"crons"` array — **not** via any `config.schedule`
+  export in the function file (Vercel ignores that; a past instance of this is why the keep-alive
+  cron silently never ran — see `docs/db-pause-recovery-plan.md`)
+  - Daily `keep-alive` cron (`0 0 * * *`) pings the DB to keep Supabase from idling
+  - Weekly `cleanup-images` cron (`0 3 * * 0`) deletes orphaned Cloudinary images
+  - Both handlers reject requests without a valid `Authorization: Bearer $CRON_SECRET` header

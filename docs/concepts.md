@@ -865,7 +865,7 @@ The `"source": "/(.*)"` pattern means these headers are attached to **every resp
 
 Some things you might expect here are configured elsewhere:
 
-- **Cron schedules** — defined in `vercel.json` on the `development` branch (`"crons"` field), but not visible on this feature branch yet
+- **Cron schedules** — registered in `vercel.json`'s `"crons"` array (not shown in the excerpt above, which only covers headers/rewrites). See [Cron jobs](#cron-jobs) below for the actual mechanism — there is no `development` branch involved
 - **Environment variables** — set in the Vercel dashboard, not in config files (they'd be committed to git, which is a security risk for secrets)
 - **Build command** — Vercel auto-detects Vite and runs `npm run build`. You can override it in vercel.json, but the default works
 - **Serverless functions** — any `.js` file in the `api/` directory is automatically deployed as a serverless function. No configuration needed
@@ -903,25 +903,38 @@ The schedule is written as a **cron expression** — five fields separated by sp
 
 Traditional cron runs on a server that's always on. Vercel is serverless — there's no persistent server. Instead, Vercel's cron scheduler acts as the clock: at the scheduled time, it sends an HTTP `GET` request to the function's URL. The function runs as a normal serverless invocation and returns a response.
 
-The schedule is declared by exporting a `config` object from the function file:
+The schedule is declared in `vercel.json`, **not** in the function file:
 
-```js
-// api/keep-alive.js
-export default async function handler(req, res) {
-  // ... do work ...
-  res.status(200).json({ ok: true });
-}
-
-export const config = {
-  schedule: '0 0 * * *'   // daily at midnight UTC
-};
+```json
+// vercel.json
+"crons": [
+  { "path": "/api/keep-alive",     "schedule": "0 0 * * *" },
+  { "path": "/api/cleanup-images", "schedule": "0 3 * * 0" }
+]
 ```
 
-Vercel reads the `config.schedule` at deploy time and registers the cron. The function itself is identical to any other serverless function — it receives `req` and `res`, does its work, and returns. It doesn't know or care that it was triggered by a cron; it could also be called manually via `GET /api/keep-alive`.
+> ⚠️ An earlier version of this project set an `export const config = { schedule }` inside the
+> function file itself and assumed that registered the cron. It doesn't — Vercel silently ignores
+> `config.schedule` and only reads the `"crons"` array in `vercel.json`. Because no branch had that
+> array, **neither cron ever ran**, which is what let the Supabase project auto-pause unnoticed
+> (see `docs/db-pause-recovery-plan.md` for the incident writeup). If you ever see `config.schedule`
+> in a function file again, it's dead code — the real schedule is whatever's in `vercel.json`.
+
+At the scheduled time, Vercel's cron scheduler sends an HTTP `GET` request to the function's URL — the function itself is a normal serverless handler; it receives `req` and `res`, does its work, and returns. It doesn't know it was triggered by a cron rather than a regular request.
+
+Because the URL is otherwise a plain public endpoint, both cron functions in this project check a shared secret before doing anything:
+
+```js
+if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  return res.status(401).end();
+}
+```
+
+Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` on cron-triggered invocations (as long as a `CRON_SECRET` env var exists on the project), so this rejects anyone else hitting the URL directly — important for `cleanup-images`, which deletes Cloudinary images. Until `CRON_SECRET` is actually set in Vercel, the check fails closed for everyone, including the real cron.
 
 ### The two cron jobs in this project
 
-**keep-alive** (`0 0 * * *` — daily midnight UTC) — runs `SELECT id FROM services LIMIT 1`. This trivial query exists because Supabase free-tier projects are paused after a week of inactivity. One query per day keeps the project awake.
+**keep-alive** (`0 0 * * *` — daily midnight UTC) — runs `SELECT id FROM services LIMIT 1`. This trivial query exists because Supabase free-tier projects are paused after a week of inactivity. One query per day keeps the project awake. On failure it sends a Telegram alert; on success it also pings an external `HEALTHCHECK_URL` (healthchecks.io) as a dead-man's-switch, so a cron that silently stops firing altogether — not just one that errors — still gets noticed.
 
 Why daily and not weekly? Strictly speaking, one query inside any 7-day window is enough to prevent the pause. Daily is deliberately more frequent to leave a safety margin: if up to six consecutive runs fail to fire (a cron hiccup, a deploy gap, a Vercel incident), the project still gets pinged before the 7-day timer elapses. The query is trivial and the invocation cost is negligible, so there's no reason to run it less often — the margin is free insurance. Weekly would be too tight: a single missed run would let the project idle.
 
