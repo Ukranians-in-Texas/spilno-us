@@ -53,6 +53,39 @@ Both endpoints were callable by anyone without authentication:
 
 ---
 
+### 10. ~~No Auth on `cleanup-images` — Public Deletion Endpoint~~ — Fixed
+
+> **Added 2026-09-14** — found and fixed during the DB-pause incident response (see
+> [db-pause-recovery-plan.md](db-pause-recovery-plan.md)), not part of the original
+> 2026-03-12 audit pass.
+
+**File:** `api/cleanup-images.js`
+
+The weekly orphan-image cleanup handler had **no authentication whatsoever**. Anyone who knew or guessed the URL could send a plain `GET` to `https://www.spilno.us/api/cleanup-images` and trigger a real deletion pass — every Cloudinary image older than 48h and unreferenced by a `services` row would be deleted. This was live and exploitable in production; it was found only because a routine `curl` to check the endpoint's HTTP status code actually executed a real cleanup run as a side effect. The endpoint predates its cron ever being registered (see Finding 10a below), so this had been reachable, unauthenticated, since the file was first deployed.
+
+**Fix (2026-09-14):** Added a `CRON_SECRET` bearer-token guard, identical in shape to `delete-image`'s existing auth check — `401` on any request without a valid `Authorization: Bearer $CRON_SECRET` header. Vercel auto-sends this header on real cron invocations, so the legitimate weekly trigger is unaffected; every other caller is now rejected.
+
+**OWASP:** A01 – Broken Access Control
+
+---
+
+### 10a. ~~Cron Schedule Never Actually Registered~~ — Fixed
+
+> **Added 2026-09-14**, same incident as Finding 10. Not itself an access-control defect, but the
+> reason Finding 10 sat unexploited for as long as it did, and the direct cause of a production
+> outage (Supabase auto-paused after the `keep-alive` cron silently never ran) — recorded here for
+> the same reason Finding 9 was: relevant context a future reader of this audit needs.
+
+**Files:** `api/keep-alive.js`, `api/cleanup-images.js`, `vercel.json`
+
+Both cron handlers declared their schedule via `export const config = { schedule }` inside the function file — a pattern Vercel silently ignores. Cron schedules are only ever registered from a `"crons"` array in `vercel.json`, which no branch had. Net effect: neither cron had ever actually fired since being written, which is both what let Finding 10 go unexploited (the cron never running meant the URL, while always directly reachable, was less likely to be discovered) and what caused the outage that prompted this whole investigation (`keep-alive` never pinging Supabase → free-tier auto-pause after ~7 days idle).
+
+**Fix (2026-09-14):** Registered both crons in `vercel.json`'s `"crons"` array; removed the dead `config.schedule` exports. Full incident detail in [db-pause-recovery-plan.md](db-pause-recovery-plan.md).
+
+**OWASP:** A05 – Security Misconfiguration
+
+---
+
 ## High
 
 ### 3. ~~Missing Input Validation~~ — Fixed
@@ -193,3 +226,5 @@ The admin session is a Supabase access token (JWT, ~1h) + long-lived refresh tok
 | ~~This week~~ | ~~Remove server secrets from Vite config~~ | `vite.config.js` | Fixed |
 | ~~Soon~~ | ~~Add CSP headers~~ | `vercel.json` | Fixed |
 | ~~Soon~~ | ~~Fix AdminLayout loading state order~~ | `src/pages/admin/AdminLayout.jsx` | Fixed |
+| ~~Now~~ | ~~Add auth to `cleanup-images`~~ — *added 2026-09-14* | `api/cleanup-images.js` | Fixed (`CRON_SECRET`) |
+| ~~Now~~ | ~~Register cron schedules in `vercel.json`~~ — *added 2026-09-14* | `vercel.json` | Fixed |
