@@ -27,16 +27,30 @@ abandoned form sessions are cleaned up server-side instead (see below).
 
 ### Orphaned image cleanup cron (`api/cleanup-images.js`)
 
-Weekly cron (Sunday 3 AM UTC) that deletes Cloudinary images not referenced by any
-`services` row. Safety mechanisms:
+Weekly cron (Sunday 3 AM UTC), registered in [vercel.json](../vercel.json)'s `"crons"` array, that
+deletes Cloudinary images not referenced by any `services` row and — piggybacked on the same
+run — commits a full `services` table JSON backup to GitHub (see
+[technical-guide.md §7 — Cron](technical-guide.md#cron)). Safety mechanisms:
 
+- **`CRON_SECRET` bearer-token guard** — `401`s any request without a valid
+  `Authorization: Bearer $CRON_SECRET` header, which Vercel auto-sends on real cron invocations.
+  **This was missing entirely until 2026-09-14** — the endpoint was a public, unauthenticated
+  deletion trigger; see [security-audit.md, Finding 10](security-audit.md#10-no-auth-on-cleanup-images--public-deletion-endpoint--fixed).
 - **48-hour grace period** — skips images uploaded less than 48h ago, protecting
   in-progress form sessions
 - **Fail-closed** — aborts if the Supabase query errors or returns null data (never
   proceeds with an empty referenced set from a failed query; an empty array from a
   successful query is fine)
 - **Telegram alerts** — sends notifications on success (with count), partial failure,
-  or full failure
+  or full failure — separately for the image cleanup and the services backup, so a failure in
+  one is never masked by the other
+
+### Keep-alive cron (`api/keep-alive.js`)
+
+Daily cron (midnight UTC), also gated behind the same `CRON_SECRET` guard. Not itself a
+rate-limiting concern — it's a trivial `SELECT` used to keep the Supabase free-tier project from
+auto-pausing — but it shares the auth pattern and is listed here for completeness. See
+[concepts.md — Cron jobs](concepts.md#cron-jobs) for the full mechanism.
 
 ## Exposed Surfaces
 
@@ -47,6 +61,8 @@ Weekly cron (Sunday 3 AM UTC) that deletes Cloudinary images not referenced by a
 | Direct Cloudinary upload | Storage/cost abuse via unsigned preset | Cloudinary preset settings only |
 | `GET /api/services` | Read scraping | Cached (`s-maxage=300`), low risk |
 | `POST /api/telegram-webhook` | Forged callbacks | Secret-token header (adequate) |
+| `GET /api/cleanup-images` | Mass image deletion | `CRON_SECRET` bearer token (was **unauthenticated** until 2026-09-14 — see Finding 10) |
+| `GET /api/keep-alive` | Low (trivial `SELECT`, no destructive action) | `CRON_SECRET` bearer token |
 
 The remaining gap is **direct Cloudinary uploads** that bypass the backend entirely.
 
