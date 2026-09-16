@@ -51,7 +51,9 @@ src/
     AddServiceForm/ # Form for submitting a new service listing
   pages/            # Page-level components (HomePage, PrivacyPage, AddServicePage, TermsPage, NotFoundPage)
     admin/          # AdminLoginPage, AdminLayout, AdminQueuePage, AdminServicesPage
-  context/          # ThemeContext, LanguageContext
+  context/          # ThemeContext.js + ThemeProvider.jsx, LanguageContext.js + LanguageProvider.jsx
+                    #   (split to keep Fast Refresh happy — a file exporting both a context
+                    #   object and a component breaks it)
   hooks/            # useTheme, useLanguage, useServices
   lib/              # supabaseClient.js — browser-side Supabase client (anon key)
   services/         # api.js — fetch functions

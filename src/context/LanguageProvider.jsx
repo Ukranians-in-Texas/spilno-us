@@ -1,10 +1,9 @@
-import { createContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { LanguageContext } from './LanguageContext';
 import en from '../i18n/en.json';
 import ua from '../i18n/ua.json';
 
 const translations = { en, ua };
-
-export const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {

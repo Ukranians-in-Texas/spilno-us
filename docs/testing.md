@@ -102,8 +102,8 @@ The polyfill in [tests/setup.js](../tests/setup.js) detects this and assigns a s
 | `src/pages/HomePage.test.jsx` | 8 | Search filtering by title, description, address; case-insensitive; clear restores all; no-match shows empty state |
 | `src/components/AddServiceForm/AddServiceForm.test.jsx` | 8 | Required field labels render; all validation errors (empty submit, email format, phone format, URL format, name length, consent); no errors before interaction |
 | `src/components/ServiceList/ServiceList.test.jsx` | 5 | Loading skeletons, error state with retry button, empty state message, service cards render, section title |
-| `src/context/ThemeContext.test.jsx` | 5 | Default light, toggle adds/removes `dark` class on `<html>`, localStorage persistence and restore |
-| `src/context/LanguageContext.test.jsx` | 6 | Default English, `t()` translation, toggle EN↔UA, localStorage persistence and restore, missing key returns the key |
+| `src/context/ThemeProvider.test.jsx` | 5 | Default light, toggle adds/removes `dark` class on `<html>`, localStorage persistence and restore |
+| `src/context/LanguageProvider.test.jsx` | 6 | Default English, `t()` translation, toggle EN↔UA, localStorage persistence and restore, missing key returns the key |
 | `src/hooks/useServices.test.js` | 5 | Success caches to `localStorage` per language; failure falls back to that cache instead of erroring; failure with no cache still errors; refetch preserves the fallback; per-language cache isolation |
 
 ### Adding a component test
@@ -114,7 +114,7 @@ Create a `*.test.jsx` file next to the component. Wrap with the providers the co
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '../../context/LanguageContext';
+import { LanguageProvider } from '../../context/LanguageProvider';
 import { MyComponent } from './MyComponent';
 
 function renderWithProviders(ui) {

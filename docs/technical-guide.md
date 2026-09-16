@@ -125,7 +125,7 @@ spilno-us/
 │   │       ├── AdminLayout.jsx       # Auth guard + nav + pending badge
 │   │       ├── AdminQueuePage.jsx    # Pending review queue (approve/delete)
 │   │       └── AdminServicesPage.jsx # All services table + slide-over EditPanel
-│   ├── context/              # LanguageContext, ThemeContext
+│   ├── context/              # LanguageContext.js+Provider.jsx, ThemeContext.js+Provider.jsx
 │   ├── hooks/                # useLanguage, useTheme, useServices
 │   ├── lib/supabaseClient.js # Browser Supabase client (anon key) — admin only
 │   ├── services/api.js       # fetchServices() — calls /api/services
@@ -255,7 +255,7 @@ Only `approved` gates public visibility. `featured` + `featured_order` only affe
 ### 6.6 Frontend filtering & i18n
 
 - HomePage holds search + category as **mutually exclusive** filters (activating one clears the other; full reset only via `clearFilters`). Default view shows up to 6 highlighted (featured-first) then the rest.
-- i18n is a custom `LanguageContext` ([src/context/LanguageContext.jsx](../src/context/LanguageContext.jsx)) with dot-path lookup over `en.json`/`ua.json`, persisted in `localStorage['lang']`. Theme is analogous (`localStorage['theme']`, toggles `dark` class on `<html>`).
+- i18n is a custom `LanguageContext` ([src/context/LanguageContext.js](../src/context/LanguageContext.js) + [LanguageProvider.jsx](../src/context/LanguageProvider.jsx) — split into two files so the Provider component doesn't break Vite Fast Refresh) with dot-path lookup over `en.json`/`ua.json`, persisted in `localStorage['lang']`. Theme is analogous (`localStorage['theme']`, toggles `dark` class on `<html>`).
 
 > See [concepts.md — Design tokens and dark mode](concepts.md#design-tokens-and-dark-mode) for how `@theme` and `html.dark` swap token values, and [i18n without a library](concepts.md#i18n-without-a-library) for the custom translation approach.
 
@@ -315,7 +315,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | `/admin/services` | `AdminServicesPage` (lazy) | Table + search + status filter + slide-over `EditPanel` (drag-to-reorder images) |
 | `*` | `NotFoundPage` | 404 |
 
-**State management:** React Context only (no Redux/Zustand). `ThemeContext` + `LanguageContext` wrap the app in `App.jsx`. Server state is fetched ad hoc (`useServices` for public, direct Supabase calls in admin pages). Admin routes are code-split via `React.lazy`.
+**State management:** React Context only (no Redux/Zustand). `ThemeProvider` + `LanguageProvider` wrap the app in `App.jsx`. Server state is fetched ad hoc (`useServices` for public, direct Supabase calls in admin pages). Admin routes are code-split via `React.lazy`.
 
 > See [concepts.md — Lazy loading](concepts.md#lazy-loading-code-splitting) for how `React.lazy` + `Suspense` code-split the admin bundle, and [HMR](concepts.md#hot-module-replacement-hmr) for how Vite's dev server differs from the production build.
 

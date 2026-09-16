@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '../../context/LanguageContext';
+import { LanguageProvider } from '../../context/LanguageProvider';
 import { AddServiceForm } from './AddServiceForm';
 
 function renderForm() {

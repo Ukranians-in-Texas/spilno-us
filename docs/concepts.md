@@ -1090,7 +1090,7 @@ The app supports English and Ukrainian without react-intl or similar libraries. 
 
 **Two JSON files** ([src/i18n/en.json](../src/i18n/en.json), [src/i18n/ua.json](../src/i18n/ua.json)) contain all UI strings as nested objects.
 
-**LanguageContext** ([src/context/LanguageContext.jsx](../src/context/LanguageContext.jsx)) provides a `t()` function that takes a dot-path key and looks it up in the active language's JSON:
+**LanguageContext** ([src/context/LanguageContext.js](../src/context/LanguageContext.js) + [LanguageProvider.jsx](../src/context/LanguageProvider.jsx)) provides a `t()` function that takes a dot-path key and looks it up in the active language's JSON:
 
 ```jsx
 const { t } = useLanguage();
