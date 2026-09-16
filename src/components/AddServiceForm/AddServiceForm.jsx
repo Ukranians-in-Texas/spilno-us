@@ -145,12 +145,16 @@ export function AddServiceForm() {
 
     useEffect(() => {
         isUnmountingRef.current = false;
+        // Same object for the component's whole lifetime — uploadControllersRef.current is
+        // only ever mutated in place ([id] = controller / delete [id]), never reassigned — so
+        // capturing it here and reading it in cleanup is equivalent to reading .current live.
+        const uploadControllers = uploadControllersRef.current;
 
         const handleBeforeUnload = () => {
             if (wasSubmittedRef.current) return;
             pageUnloadingRef.current = true;
             isUnmountingRef.current = true;
-            Object.values(uploadControllersRef.current).forEach((c) =>
+            Object.values(uploadControllers).forEach((c) =>
                 c.abort(),
             );
         };
@@ -161,7 +165,7 @@ export function AddServiceForm() {
             window.removeEventListener("beforeunload", handleBeforeUnload);
             if (wasSubmittedRef.current || pageUnloadingRef.current) return;
             isUnmountingRef.current = true;
-            Object.values(uploadControllersRef.current).forEach((c) =>
+            Object.values(uploadControllers).forEach((c) =>
                 c.abort(),
             );
         };
