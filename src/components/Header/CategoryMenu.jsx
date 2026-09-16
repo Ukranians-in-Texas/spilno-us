@@ -27,7 +27,7 @@ export function CategoryMenu({ onSelectCategory }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="hidden md:flex items-center gap-1.5 px-[25px] py-[15px] text-dark-blue font-semibold text-lg hover:bg-light-gray dark:hover:bg-white/10 rounded-[25px] transition-colors cursor-pointer"
+        className="hidden md:flex items-center gap-1.5 px-6.25 py-3.75 text-dark-blue font-semibold text-lg hover:bg-light-gray dark:hover:bg-white/10 rounded-[25px] transition-colors cursor-pointer"
       >
         {t('header.allServices')}
         <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

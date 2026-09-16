@@ -100,7 +100,7 @@ export function HomePage() {
       />
 
       {isFiltering && (
-        <div className="max-w-[1440px] mx-auto px-4 pt-6">
+        <div className="max-w-360 mx-auto px-4 pt-6">
           <div className="flex items-center gap-2 text-sm text-text/70">
             {selectedCategory && (
               <span className="bg-dark-blue dark:bg-brand-red text-white px-3 py-1 rounded-full text-xs font-bold">

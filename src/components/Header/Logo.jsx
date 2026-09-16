@@ -6,7 +6,7 @@ export function Logo() {
       <img
         src={logoSvg}
         alt="Ukrainians in Texas"
-        className="h-[46px] md:h-[72px] w-auto"
+        className="h-11.5 md:h-18 w-auto"
       />
     </a>
   );
