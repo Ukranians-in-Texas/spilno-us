@@ -25,7 +25,7 @@ For deep architecture/data/subsystem detail, see `docs/technical-guide.md`.
 - `npm run test:watch` — watch mode
 - `npm run test:e2e` — Playwright E2E (3 specs in `tests/e2e/`: browse, submit, navigation — API mocked via `page.route()`)
 
-Test files live next to the source files they cover (`*.test.js` for unit/API handlers, `*.test.jsx` for components). 159 unit/component tests across 15 files as of this writing — full file-by-file breakdown in [docs/testing.md](docs/testing.md), not duplicated here to avoid the two drifting out of sync.
+Test files live next to the source files they cover (`*.test.js` for unit/API handlers, `*.test.jsx` for components). 162 unit/component tests across 15 files as of this writing — full file-by-file breakdown in [docs/testing.md](docs/testing.md), not duplicated here to avoid the two drifting out of sync.
 
 Supabase, Telegram, Cloudinary, and GitHub are mocked via `vi.mock()` in unit tests. No real DB or API calls are made during tests.
 
@@ -127,6 +127,8 @@ Server-side (Vercel only, never in client):
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_UPLOAD_FOLDER` — optional; if set, `/api/delete-image` rejects any `publicId`
+  outside this folder (403), on top of the admin-auth check. No-op if unset
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `TELEGRAM_WEBHOOK_SECRET`

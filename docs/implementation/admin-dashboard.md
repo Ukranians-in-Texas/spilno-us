@@ -30,7 +30,7 @@ The RLS policy for admin access is in `supabase/admin-rls.sql`.
 Shows all pending submissions (`approved = false`), newest first.
 
 - **Approve** — sets `approved = true`, removes the item from the queue view
-- **Delete** — permanently deletes the record after confirmation
+- **Delete** — permanently deletes the record after confirmation, and its Cloudinary images via `/api/delete-image` (Bearer token from the current admin session)
 
 ### Services (`/admin/services`)
 

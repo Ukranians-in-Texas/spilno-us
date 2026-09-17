@@ -128,7 +128,7 @@ npm run test:e2e    # Playwright E2E (tests/e2e/) — API mocked, no real backen
 
 ## Testing
 
-Unit/component tests use [Vitest](https://vitest.dev/) (works natively with Vite, no extra config) — 159 tests across 15 files as of this writing. External services (Supabase, Telegram, Cloudinary, GitHub) are mocked — no real network or DB calls. Test files live next to the source they cover; see [docs/testing.md](docs/testing.md) for the full file-by-file breakdown.
+Unit/component tests use [Vitest](https://vitest.dev/) (works natively with Vite, no extra config) — 162 tests across 15 files as of this writing. External services (Supabase, Telegram, Cloudinary, GitHub) are mocked — no real network or DB calls. Test files live next to the source they cover; see [docs/testing.md](docs/testing.md) for the full file-by-file breakdown.
 
 E2E tests use [Playwright](https://playwright.dev/) (`tests/e2e/`, 3 specs: browse, submit, navigation) with the API mocked at the network level via `page.route()`.
 

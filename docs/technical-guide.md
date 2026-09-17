@@ -325,12 +325,12 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 > See [testing.md](testing.md) for how to run tests, how to add new ones, and a guide to the coverage gaps.
 
-**159 unit/component tests across 15 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
+**162 unit/component tests across 15 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
 
 | File | Tests | Covers |
 | --- | --- | --- |
 | [api/submit-service.test.js](../api/submit-service.test.js) | 32 | All validation rules, honeypot, rate limiting (incl. fail-closed), image filtering, success/error paths |
-| [api/delete-image.test.js](../api/delete-image.test.js) | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, Cloudinary success/error |
+| [api/delete-image.test.js](../api/delete-image.test.js) | 13 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, `CLOUDINARY_UPLOAD_FOLDER` restriction (opt-in), Cloudinary success/error |
 | [api/cleanup-images.test.js](../api/cleanup-images.test.js) | 18 | Orphan deletion, 48h grace period, pagination, empty/null data, Cloudinary failures, Telegram alerts, `CRON_SECRET` guard, services backup |
 | [api/telegram-webhook.test.js](../api/telegram-webhook.test.js) | 15 | Secret check, UUID/action validation, approve/delete, idempotency, errors |
 | [api/_lib/telegram.test.js](../api/_lib/telegram.test.js) | 11 | Message building, escaping, notification payload |
@@ -401,6 +401,7 @@ npm run dev              # Vite dev server with local /api middleware
 | `CLOUDINARY_CLOUD_NAME` | server | Yes | No | Cloudinary cloud for signed delete |
 | `CLOUDINARY_API_KEY` | server | Yes | **Yes** | Cloudinary Admin API key |
 | `CLOUDINARY_API_SECRET` | server | Yes | **Yes** | Cloudinary Admin API secret |
+| `CLOUDINARY_UPLOAD_FOLDER` | server | Optional | No | Defense-in-depth: `/api/delete-image` rejects a `publicId` outside this folder (403). No-op if unset — restored 2026-09-16 after being accidentally dropped in a refactor; see security-audit.md Finding 2 |
 | `TELEGRAM_BOT_TOKEN` | server | Optional* | **Yes** | Bot token for notify + webhook calls |
 | `TELEGRAM_CHAT_ID` | server | Optional* | No | Destination chat for notifications |
 | `TELEGRAM_WEBHOOK_SECRET` | server | Optional* | **Yes** | Verifies incoming Telegram webhook calls |

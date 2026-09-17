@@ -48,7 +48,7 @@ Both run together with `npm test`. The environment is set globally to `jsdom` in
 
 **Config:** [vitest.config.js](../vitest.config.js) — merges into the Vite config, excludes `tests/e2e/`.
 
-**What's covered (122 tests, 9 files):**
+**What's covered (125 tests, 9 files):**
 
 All external services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` — no real network or database calls.
 
@@ -57,7 +57,7 @@ All external services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `
 | `api/submit-service.test.js` | 32 | All validation rules, honeypot (silent 200), rate limiting (including fail-closed on DB error), image URL filtering, success/error paths |
 | `api/telegram-webhook.test.js` | 15 | Secret header check, UUID/action validation, approve (idempotent), delete (with Cloudinary cleanup), error paths |
 | `api/cleanup-images.test.js` | 18 | Orphan detection, 48h grace period, pagination, empty/null data handling, Cloudinary failures, Telegram alerts, `CRON_SECRET` guard, services-table backup (success, failure alert, independent of cleanup outcome) |
-| `api/delete-image.test.js` | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, publicId validation, Cloudinary success/error |
+| `api/delete-image.test.js` | 13 | Auth (no header, non-Bearer, invalid token, null user), method check, publicId validation, `CLOUDINARY_UPLOAD_FOLDER` restriction (opt-in, no-op unless set), Cloudinary success/error |
 | `api/_lib/telegram.test.js` | 11 | Message building, HTML escaping (`&<>"`), notification payload with inline keyboard |
 | `api/_lib/cloudinary.test.js` | 8 | Public ID extraction from URL, single delete, CSV batch delete |
 | `api/_lib/github.test.js` | 6 | Missing-token guard, branch create-if-missing, sha-aware overwrite (update vs. create), commit failure |
