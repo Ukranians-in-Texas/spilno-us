@@ -65,10 +65,5 @@ Planning and research docs — mostly **(historical)**, completed and superseded
 - [cloudinary-plan.md](plans/cloudinary-plan.md) — *(historical)* Plan for the Cloudinary image integration (completed).
 - [admin-dashboard-research-prompt.md](plans/admin-dashboard-research-prompt.md) — *(historical)* Research prompt that informed the admin dashboard.
 - [admin-dashboard-research-results.md](plans/admin-dashboard-research-results.md) — *(historical)* Research findings/recommended stack for the admin dashboard.
-
-## superpowers/
-
-Feature specs and plans authored via the Superpowers workflow — both **(historical)**, completed.
-
-- [specs/2026-03-20-telegram-approve-deny-design.md](superpowers/specs/2026-03-20-telegram-approve-deny-design.md) — Design spec for Telegram inline Approve/Delete buttons.
-- [plans/2026-03-20-telegram-approve-deny.md](superpowers/plans/2026-03-20-telegram-approve-deny.md) — Task-by-task implementation plan for the same feature.
+- [telegram-approve-deny-design.md](plans/telegram-approve-deny-design.md) — *(historical)* Design spec for Telegram inline Approve/Delete buttons (completed).
+- [telegram-approve-deny-plan.md](plans/telegram-approve-deny-plan.md) — *(historical)* Task-by-task implementation plan for the same feature (completed).
