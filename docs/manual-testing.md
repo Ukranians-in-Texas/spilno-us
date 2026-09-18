@@ -201,22 +201,19 @@ curl -X POST https://spilno.us/api/submit-service \
 ### 4.4 Cloudinary Delete Protection
 
 ```bash
-# Should fail — path not in configured upload folder
+# Should fail — no auth token
 curl -X POST https://spilno.us/api/delete-image \
   -H "Content-Type: application/json" \
-  -d '{"publicId":"../../etc/passwd"}'
+  -d '{"publicId":"anything"}'
 ```
 
-**Expected:** HTTP 400 — forbidden path
+**Expected:** HTTP 401 — `/api/delete-image` requires a valid Supabase admin Bearer token, checked
+before anything else (before the `publicId` check, before the folder restriction below).
 
-```bash
-# Should fail — no publicId
-curl -X POST https://spilno.us/api/delete-image \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-**Expected:** HTTP 400
+> The deeper checks aren't practical to `curl` manually since they require a real admin token to
+> reach: missing `publicId` → `400`, and a `publicId` outside `CLOUDINARY_UPLOAD_FOLDER` → `403`
+> (opt-in defense-in-depth — no-op unless that env var is set; see `.env.example`). Both are
+> covered by the automated suite instead: `api/delete-image.test.js`.
 
 ---
 

@@ -49,6 +49,20 @@ Both endpoints were callable by anyone without authentication:
 
 **Fix (2026-06-20):** `delete-image` now requires a valid Supabase Bearer token (admin session) — returns `401` without one. The public form no longer calls this endpoint; orphaned images are cleaned up by a weekly server-side cron (`api/cleanup-images.js`). Rate limiting on `submit-service` now fails closed (returns `500` on DB query error instead of allowing through).
 
+> ⚠️ **Regression found 2026-09-16:** the 2026-03-16 folder-prefix check was silently dropped four
+> days later, in a refactor (`23db0d3`, "extract Cloudinary deletion into shared helper") that
+> moved the delete logic into `api/_lib/cloudinary.js` without carrying the check along — not
+> called out in that commit's message, and untested, so it went unnoticed for ~6 months. The
+> 2026-06-20 Bearer-token auth fix above (which *is* still live) meant the endpoint was never
+> publicly exploitable during that window, but any authenticated admin session could delete
+> **any** Cloudinary asset, not just ones this app uploaded.
+>
+> **Fixed 2026-09-16:** the folder-prefix check is restored in `api/delete-image.js`, opt-in via a
+> new `CLOUDINARY_UPLOAD_FOLDER` env var (no-op if unset, so this couldn't break existing deletes
+> by shipping with a guessed/wrong value). **Not yet enforcing anything in production** — the env
+> var isn't set. Set it in Vercel, matching your unsigned upload preset's actual "Asset folder,"
+> to close the gap for real. 3 new tests in `api/delete-image.test.js`.
+
 **OWASP:** A01 – Broken Access Control
 
 ---

@@ -23,19 +23,11 @@ For deep architecture/data/subsystem detail, see `docs/technical-guide.md`.
 - **Vitest** — test runner (works natively with Vite, no extra config needed)
 - `npm test` — run all tests once
 - `npm run test:watch` — watch mode
+- `npm run test:e2e` — Playwright E2E (3 specs in `tests/e2e/`: browse, submit, navigation — API mocked via `page.route()`)
 
-Test files live next to the source files they cover (`*.test.js`):
+Test files live next to the source files they cover (`*.test.js` for unit/API handlers, `*.test.jsx` for components). 162 unit/component tests across 15 files as of this writing — full file-by-file breakdown in [docs/testing.md](docs/testing.md), not duplicated here to avoid the two drifting out of sync.
 
-| File | What's covered |
-| --- | --- |
-| `src/utils/validation.test.js` | `formatPhone`, `isValidURL`, `getSafeHref`, `getDomain` |
-| `src/utils/imageUrl.test.js` | `getCloudinaryPublicId`, `parseImageUrls` |
-| `api/submit-service.test.js` | All validation rules, honeypot, rate limiting, image filtering, success/error paths |
-| `api/telegram-webhook.test.js` | Approve/delete callbacks, secret check, UUID/action validation, idempotency |
-| `api/_lib/telegram.test.js` | Message building + HTML escaping |
-| `api/_lib/cloudinary.test.js` | Public-id extraction, single/CSV delete |
-
-Supabase, Telegram, and Cloudinary are mocked via `vi.mock()`. No real DB or API calls are made during tests.
+Supabase, Telegram, Cloudinary, and GitHub are mocked via `vi.mock()` in unit tests. No real DB or API calls are made during tests.
 
 ## Project Structure
 
@@ -51,7 +43,9 @@ src/
     AddServiceForm/ # Form for submitting a new service listing
   pages/            # Page-level components (HomePage, PrivacyPage, AddServicePage, TermsPage, NotFoundPage)
     admin/          # AdminLoginPage, AdminLayout, AdminQueuePage, AdminServicesPage
-  context/          # ThemeContext, LanguageContext
+  context/          # ThemeContext.js + ThemeProvider.jsx, LanguageContext.js + LanguageProvider.jsx
+                    #   (split to keep Fast Refresh happy — a file exporting both a context
+                    #   object and a component breaks it)
   hooks/            # useTheme, useLanguage, useServices
   lib/              # supabaseClient.js — browser-side Supabase client (anon key)
   services/         # api.js — fetch functions
@@ -73,6 +67,8 @@ api/                # Vercel serverless functions
 supabase/
   schema.sql        # Table definition + public read RLS policy
   admin-rls.sql     # Admin full-access RLS policy (run once in SQL Editor)
+tests/
+  e2e/              # Playwright specs (browse, submit, navigation) — run via `npm run test:e2e`
 ```
 
 ## Key Conventions
@@ -89,7 +85,9 @@ supabase/
 
 - Theme and language stored in `localStorage` and managed via Context
 - Filtering state lives in `HomePage` (search and category are mutually exclusive)
-- `useServices` hook handles data fetching with cancellation flag
+- `useServices` hook handles data fetching with cancellation flag; caches the last successful
+  fetch to `localStorage` per language and falls back to it on failure, so a transient API/DB
+  blip doesn't blank the page for a returning visitor
 
 ## i18n
 
@@ -129,6 +127,8 @@ Server-side (Vercel only, never in client):
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_UPLOAD_FOLDER` — optional; if set, `/api/delete-image` rejects any `publicId`
+  outside this folder (403), on top of the admin-auth check. No-op if unset
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `TELEGRAM_WEBHOOK_SECRET`

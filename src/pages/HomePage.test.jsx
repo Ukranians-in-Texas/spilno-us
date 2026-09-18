@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '../context/LanguageContext';
-import { ThemeProvider } from '../context/ThemeContext';
+import { LanguageProvider } from '../context/LanguageProvider';
+import { ThemeProvider } from '../context/ThemeProvider';
 import { HomePage } from './HomePage';
 
 const SERVICES = [

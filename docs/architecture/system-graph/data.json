@@ -20,7 +20,7 @@
     { "id": "api-services", "label": "GET /api/services", "category": "server", "path": "api/services.js", "detail": "Returns approved services (cached 5m / SWR 10m)" },
     { "id": "api-submit", "label": "POST /api/submit-service", "category": "server", "path": "api/submit-service.js", "detail": "Validates, rate-limits, inserts, notifies Telegram" },
     { "id": "api-telegram-webhook", "label": "POST /api/telegram-webhook", "category": "server", "path": "api/telegram-webhook.js", "detail": "Approve/Delete button callbacks (secret-verified)" },
-    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one Cloudinary image by public id (requires Supabase Bearer token)" },
+    { "id": "api-delete-image", "label": "POST /api/delete-image", "category": "server", "path": "api/delete-image.js", "detail": "Deletes one Cloudinary image by public id (requires Supabase Bearer token; optional CLOUDINARY_UPLOAD_FOLDER restriction on top, no-op unless set)" },
 
     { "id": "keep-alive", "label": "keep-alive cron", "category": "job", "path": "api/keep-alive.js", "detail": "Vercel Cron 0 0 * * *, CRON_SECRET-gated — pings DB to keep it warm; alerts Telegram on failure, pings healthchecks.io on success" },
     { "id": "cleanup-images", "label": "cleanup-images cron", "category": "job", "path": "api/cleanup-images.js", "detail": "Vercel Cron 0 3 * * 0, CRON_SECRET-gated — deletes orphaned Cloudinary images (48h grace period) AND backs up the services table to GitHub" },

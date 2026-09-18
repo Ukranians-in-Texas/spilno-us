@@ -8,7 +8,9 @@ The project supports light and dark modes. The active theme is stored in `localS
 
 ## State Management
 
-**`src/context/ThemeContext.jsx`** — single source of truth:
+**`src/context/ThemeProvider.jsx`** — single source of truth (the context object itself lives in
+the sibling `ThemeContext.js`, split out so this file can export a component without breaking
+Vite Fast Refresh):
 
 - Initializes from `localStorage` (defaults to `'light'`)
 - On change, syncs to the DOM: `document.documentElement.classList.toggle('dark', theme === 'dark')`

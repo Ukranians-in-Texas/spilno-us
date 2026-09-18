@@ -25,6 +25,12 @@ Requires a valid Supabase Bearer token (admin session). Returns `401` without on
 The public add-service form no longer calls this endpoint — orphaned images from
 abandoned form sessions are cleaned up server-side instead (see below).
 
+Second layer, opt-in: if `CLOUDINARY_UPLOAD_FOLDER` is set, also rejects (`403`) any `publicId`
+outside that folder. This existed once (2026-03-16), was accidentally dropped four days later in
+a refactor, and went unnoticed — and untested — for ~6 months until restored 2026-09-16. It's
+currently a no-op in production since the env var isn't set; see
+[security-audit.md, Finding 2](security-audit.md#2-no-auth-on-api-endpoints--fixed).
+
 ### Orphaned image cleanup cron (`api/cleanup-images.js`)
 
 Weekly cron (Sunday 3 AM UTC), registered in [vercel.json](../vercel.json)'s `"crons"` array, that
@@ -57,7 +63,7 @@ auto-pausing — but it shares the auth pattern and is listed here for completen
 | Surface | Risk | Current protection |
 | --- | --- | --- |
 | `POST /api/submit-service` | Form spam | Email limit (fail-closed) + honeypot + manual approval |
-| `POST /api/delete-image` | Image deletion abuse | Supabase auth (Bearer token) |
+| `POST /api/delete-image` | Image deletion abuse | Supabase auth (Bearer token) + opt-in folder restriction (see above) |
 | Direct Cloudinary upload | Storage/cost abuse via unsigned preset | Cloudinary preset settings only |
 | `GET /api/services` | Read scraping | Cached (`s-maxage=300`), low risk |
 | `POST /api/telegram-webhook` | Forged callbacks | Secret-token header (adequate) |

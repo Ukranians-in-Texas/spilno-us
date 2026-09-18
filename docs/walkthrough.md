@@ -462,7 +462,7 @@ await Promise.allSettled(
 const { error } = await supabase.from('services').delete().eq('id', id);
 ```
 
-The split: images go through `/api/delete-image` (because the Cloudinary API secret is server-side only), but the row is deleted directly via Supabase (because RLS allows it). The Bearer token in the image delete request is the Supabase session JWT — the serverless function extracts it, calls `supabase.auth.getUser(token)` to verify it's a real user, then proceeds with the Cloudinary deletion.
+The split: images go through `/api/delete-image` (because the Cloudinary API secret is server-side only), but the row is deleted directly via Supabase (because RLS allows it). The Bearer token in the image delete request is the Supabase session JWT — the serverless function extracts it, calls `supabase.auth.getUser(token)` to verify it's a real user. If `CLOUDINARY_UPLOAD_FOLDER` is set, it then also checks `publicId` starts with that folder (403 if not — opt-in defense-in-depth, no-op today since that env var isn't set; see `docs/security-audit.md` Finding 2 for why this check exists at all), before finally proceeding with the Cloudinary deletion.
 
 ### Admin dashboard — end to end
 

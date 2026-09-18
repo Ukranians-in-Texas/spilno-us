@@ -6,7 +6,7 @@ A bilingual service directory connecting Ukrainian professionals in Texas with p
 
 The platform lets visitors browse, search, and filter Ukrainian service providers across Texas. Providers submit listings through a public form; each submission is reviewed and approved by an admin — via a Telegram bot or the web admin dashboard — before it appears on the site.
 
-**Key features:**
+### Key features
 
 - 🔍 Browse, search, and filter providers
 - 🏷️ 21 service categories (105 subcategories)
@@ -39,12 +39,13 @@ The platform lets visitors browse, search, and filter Ukrainian service provider
 
 ## Project Structure
 
-```
+```text
 spilno-us/
 ├── api/              # Vercel serverless functions + _lib helpers
 ├── src/              # React frontend (components, pages, hooks, context, i18n)
 ├── supabase/         # schema.sql + admin-rls.sql
 ├── docs/             # Documentation
+├── tests/e2e/        # Playwright specs
 ├── vite.config.js    # Vite config + local /api dev middleware
 ├── vercel.json       # Security headers (CSP) + SPA rewrite
 └── package.json
@@ -122,20 +123,14 @@ npm run preview     # serve the production build
 npm run lint        # ESLint
 npm test            # run all tests once
 npm run test:watch  # tests in watch mode
+npm run test:e2e    # Playwright E2E (tests/e2e/) — API mocked, no real backend needed
 ```
 
 ## Testing
 
-Unit tests use [Vitest](https://vitest.dev/) (works natively with Vite, no extra config). External services (Supabase, Telegram, Cloudinary) are mocked — no real network or DB calls. Test files live next to the source they cover:
+Unit/component tests use [Vitest](https://vitest.dev/) (works natively with Vite, no extra config) — 162 tests across 15 files as of this writing. External services (Supabase, Telegram, Cloudinary, GitHub) are mocked — no real network or DB calls. Test files live next to the source they cover; see [docs/testing.md](docs/testing.md) for the full file-by-file breakdown.
 
-| File | Covers |
-| --- | --- |
-| `src/utils/validation.test.js` | `formatPhone`, `isValidURL`, `getSafeHref`, `getDomain` |
-| `src/utils/imageUrl.test.js` | `getCloudinaryPublicId`, `parseImageUrls` |
-| `api/submit-service.test.js` | Validation, honeypot, rate limiting, image filtering, success/error paths |
-| `api/telegram-webhook.test.js` | Secret check, approve/delete callbacks, idempotency |
-| `api/_lib/telegram.test.js` | Message building and escaping |
-| `api/_lib/cloudinary.test.js` | Public-id extraction, single/CSV delete |
+E2E tests use [Playwright](https://playwright.dev/) (`tests/e2e/`, 3 specs: browse, submit, navigation) with the API mocked at the network level via `page.route()`.
 
 ## Deployment
 
@@ -161,4 +156,4 @@ Questions or support: [info@spilno.us](mailto:info@spilno.us)
 
 ---
 
-**Built with ❤️ for the Ukrainian community in Texas**
+Built with ❤️ for the Ukrainian community in Texas

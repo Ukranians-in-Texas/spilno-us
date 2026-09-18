@@ -1,5 +1,7 @@
 # Rate Limiting Implementation Plan
 
+> **Historical** — Completed. See [rate-limiting.md](../rate-limiting.md) for current state.
+
 ## Context
 
 The project had one DB-backed email rate limit on `/api/submit-service` (3 per email per 24h). Two structural gaps remained (documented in `docs/rate-limiting.md`):
@@ -13,11 +15,11 @@ The project had one DB-backed email rate limit on `/api/submit-service` (3 per e
 
 Requires a Supabase session token in the `Authorization: Bearer <token>` header. Returns 401 if missing or invalid.
 
-| File                             | Change                              |
-| -------------------------------- | ----------------------------------- |
-| `api/delete-image.js`            | Added auth check before delete logic |
+| File                                    | Change                                |
+| --------------------------------------- | ------------------------------------- |
+| `api/delete-image.js`                   | Added auth check before delete logic  |
 | `src/pages/admin/AdminQueuePage.jsx`    | Added `Authorization` header to fetch |
-| `src/pages/admin/AdminServicesPage.jsx` | Same                                |
+| `src/pages/admin/AdminServicesPage.jsx` | Same                                  |
 
 ### 2. Remove client-side image cleanup from the public form
 

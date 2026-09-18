@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import { ThemeProvider, ThemeContext } from './ThemeContext';
+import { ThemeProvider } from './ThemeProvider';
+import { ThemeContext } from './ThemeContext';
 import { useContext } from 'react';
 
 function TestConsumer() {

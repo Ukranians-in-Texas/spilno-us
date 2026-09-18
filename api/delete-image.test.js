@@ -120,6 +120,36 @@ describe('validation', () => {
   });
 });
 
+// --- upload folder restriction (opt-in) ---
+
+describe('CLOUDINARY_UPLOAD_FOLDER restriction', () => {
+  beforeEach(() => mockAuth());
+  afterEach(() => { delete process.env.CLOUDINARY_UPLOAD_FOLDER; });
+
+  it('is a no-op when CLOUDINARY_UPLOAD_FOLDER is not set', async () => {
+    const res = makeRes();
+    await handler(authedReq({ body: { publicId: 'other-folder/my-image' } }), res);
+    expect(res._status).toBe(200);
+  });
+
+  it('rejects a publicId outside the configured folder', async () => {
+    process.env.CLOUDINARY_UPLOAD_FOLDER = 'folder';
+    const res = makeRes();
+    await handler(authedReq({ body: { publicId: 'other-folder/my-image' } }), res);
+    expect(res._status).toBe(403);
+    expect(res._body.error).toBe('Forbidden');
+    expect(deleteCloudinaryImageById).not.toHaveBeenCalled();
+  });
+
+  it('allows a publicId inside the configured folder', async () => {
+    process.env.CLOUDINARY_UPLOAD_FOLDER = 'folder';
+    const res = makeRes();
+    await handler(authedReq({ body: { publicId: 'folder/my-image' } }), res);
+    expect(res._status).toBe(200);
+    expect(deleteCloudinaryImageById).toHaveBeenCalledWith('folder/my-image');
+  });
+});
+
 // --- cloudinary ---
 
 describe('cloudinary delete', () => {
