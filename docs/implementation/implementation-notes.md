@@ -8,10 +8,10 @@ Assumptions, conflicts, and open questions tracked during MVP implementation.
 
 ### Font: Inter vs Lato
 
-- **docs/MVP_DOCUMENT.md** specifies `Inter`
+- **docs/architecture/mvp-document.md** specifies `Inter`
 - **Figma design** uses `Lato` throughout all frames
 - **Decision:** Using **Lato** (Figma is the design source of truth for visual details)
-- Per docs/DECISIONS.md: Figma designs take precedence for visual/styling decisions
+- Per docs/architecture/decisions.md: Figma designs take precedence for visual/styling decisions
 
 ---
 

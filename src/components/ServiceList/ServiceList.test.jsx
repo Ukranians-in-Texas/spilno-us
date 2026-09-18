@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { LanguageProvider } from '../../context/LanguageContext';
+import { LanguageProvider } from '../../context/LanguageProvider';
 import { ServiceList } from './ServiceList';
 
 function renderWithProviders(ui) {

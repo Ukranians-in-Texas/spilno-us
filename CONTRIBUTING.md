@@ -3,22 +3,22 @@
 ## Branch structure
 
 | Branch | Purpose |
-|---|---|
+| --- | --- |
 | `main` | Production — deployed to spilno.us. Never commit directly. |
-| `development` | Default working branch. All feature PRs merge here. |
+| `dev` | Default working branch. All feature PRs merge here. |
 | `feature/*` | Your day-to-day work branches. |
 
 ---
 
 ## Day-to-day workflow
 
-### 1. Start from a fresh development
+### 1. Start from a fresh `dev`
 
-Always base your work on the latest `development`:
+Always base your work on the latest `dev`:
 
 ```bash
-git checkout development
-git pull origin development
+git checkout dev
+git pull origin dev
 ```
 
 ### 2. Create a feature branch
@@ -62,6 +62,7 @@ Watch out for files that should never be committed:
 All of the above are already covered by `.gitignore`, but `git status` will catch anything that slips through.
 
 Commit message prefixes:
+
 - `feat:` — new feature
 - `fix:` — bug fix
 - `chore:` — maintenance (deps, config)
@@ -70,11 +71,11 @@ Commit message prefixes:
 
 ### 4. Keep your branch up to date
 
-If `development` got new commits while you were working, rebase to stay current:
+If `dev` got new commits while you were working, rebase to stay current:
 
 ```bash
 git fetch origin
-git rebase origin/development
+git rebase origin/dev
 ```
 
 Resolve any conflicts, then continue:
@@ -97,7 +98,7 @@ git push origin feature/add-search-filters --force-with-lease
 
 ### 6. Open a Pull Request
 
-- **Base branch:** `development` (not `main`)
+- **Base branch:** `dev` (not `main`)
 - **Title:** short and descriptive — same style as commit messages
 - **Description:** what changed and why, plus any testing notes
 - Request a review from a teammate
@@ -105,16 +106,16 @@ git push origin feature/add-search-filters --force-with-lease
 ### 7. Get approval and merge
 
 - Address all review comments
-- Once approved, **squash and merge** to keep `development` history clean
+- Once approved, **merge** (regular merge commit — this repo keeps each PR's original commits, not squashed)
 - Delete the feature branch after merging
 
 ---
 
 ## Releasing to production
 
-When `development` is stable and ready to ship:
+When `dev` is stable and ready to ship:
 
-1. Open a PR from `development` → `main`
+1. Open a PR from `dev` → `main`
 2. Title it: `release: YYYY-MM-DD` or describe what's going out
 3. Get approval, then merge
 4. Vercel will auto-deploy `main` to production
@@ -123,7 +124,7 @@ When `development` is stable and ready to ship:
 
 ## Rules
 
-- Never commit directly to `development` or `main`
+- Never commit directly to `dev` or `main`
 - Never commit `.env` files
 - Don't merge your own PR without a review (unless explicitly agreed)
 - Keep PRs small — easier to review, less risk

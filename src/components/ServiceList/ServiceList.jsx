@@ -7,7 +7,7 @@ export function ServiceList({ services, loading, error, onRetry, title, onSubcat
     if (loading) {
         return (
             <section className="py-12 px-4">
-                <div className="max-w-[1440px] mx-auto">
+                <div className="max-w-360 mx-auto">
                     {title && (
                         <h2 className="text-2xl font-bold text-dark-blue mb-8">
                             {title}
@@ -34,7 +34,7 @@ export function ServiceList({ services, loading, error, onRetry, title, onSubcat
     if (error) {
         return (
             <section className="py-12 px-4">
-                <div className="max-w-[1440px] mx-auto text-center">
+                <div className="max-w-360 mx-auto text-center">
                     <p className="text-text/70 mb-4">{t("services.error")}</p>
                     <Button variant="outline" onClick={onRetry}>
                         {t("services.retry")}
@@ -47,7 +47,7 @@ export function ServiceList({ services, loading, error, onRetry, title, onSubcat
     if (services.length === 0) {
         return (
             <section className="py-12 px-4">
-                <div className="max-w-[1440px] mx-auto text-center">
+                <div className="max-w-360 mx-auto text-center">
                     <p className="text-text/70 mb-4">
                         {t("services.emptyCategory")}
                     </p>
@@ -61,7 +61,7 @@ export function ServiceList({ services, loading, error, onRetry, title, onSubcat
 
     return (
         <section className="py-12 px-4">
-            <div className="max-w-[1440px] mx-auto">
+            <div className="max-w-360 mx-auto">
                 {title && (
                     <h2 className="text-2xl font-bold text-dark-blue mb-8">
                         {title}

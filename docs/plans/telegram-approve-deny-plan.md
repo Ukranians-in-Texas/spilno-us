@@ -1,6 +1,6 @@
 # Telegram Approve/Deny Implementation Plan
 
-> **Historical** — Completed. Telegram inline buttons are live. See [technical-guide.md](../../technical-guide.md) for current state.
+> **Historical** — Completed. Telegram inline buttons are live. See [technical-guide.md](../technical-guide.md) for current state.
 >
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,7 +10,7 @@
 
 **Tech Stack:** Node.js (Vercel serverless), Supabase JS client, Telegram Bot API, Cloudinary Resources API, Vitest for tests.
 
-**Spec:** `docs/superpowers/specs/2026-03-20-telegram-approve-deny-design.md`
+**Spec:** [telegram-approve-deny-design.md](telegram-approve-deny-design.md)
 
 ---
 

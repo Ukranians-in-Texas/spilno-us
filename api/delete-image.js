@@ -26,6 +26,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing publicId' });
   }
 
+  // Defense-in-depth: restrict deletion to this app's own Cloudinary folder, on top of
+  // the admin-auth check above. Opt-in via CLOUDINARY_UPLOAD_FOLDER — no-op if unset, so
+  // this can't break existing deletes if the value isn't (yet) configured in Vercel.
+  const uploadFolder = process.env.CLOUDINARY_UPLOAD_FOLDER;
+  if (uploadFolder && !publicId.startsWith(`${uploadFolder}/`)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   if (
     !process.env.CLOUDINARY_CLOUD_NAME ||
     !process.env.CLOUDINARY_API_KEY ||

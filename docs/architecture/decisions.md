@@ -187,7 +187,7 @@ Custom form includes:
 ### Structure
 
 ```text
-community-frontend/
+spilno-us/
 ├── api/              # Vercel serverless functions (server-side)
 ├── src/              # React frontend (client-side)
 ├── supabase/         # SQL schema and RLS policies

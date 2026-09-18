@@ -8,7 +8,7 @@ export function Hero({ searchQuery, onSearchChange, selectedCategory, onCategory
 
   return (
     <section className="bg-light-gray py-12 md:py-16 px-4">
-      <div className="max-w-[1440px] mx-auto text-center">
+      <div className="max-w-360 mx-auto text-center">
         <h1 className="text-2xl md:text-4xl font-bold text-dark-blue mb-4 max-w-3xl mx-auto leading-tight">
           {t('hero.headline')}
         </h1>

@@ -125,7 +125,7 @@ spilno-us/
 │   │       ├── AdminLayout.jsx       # Auth guard + nav + pending badge
 │   │       ├── AdminQueuePage.jsx    # Pending review queue (approve/delete)
 │   │       └── AdminServicesPage.jsx # All services table + slide-over EditPanel
-│   ├── context/              # LanguageContext, ThemeContext
+│   ├── context/              # LanguageContext.js+Provider.jsx, ThemeContext.js+Provider.jsx
 │   ├── hooks/                # useLanguage, useTheme, useServices
 │   ├── lib/supabaseClient.js # Browser Supabase client (anon key) — admin only
 │   ├── services/api.js       # fetchServices() — calls /api/services
@@ -255,7 +255,7 @@ Only `approved` gates public visibility. `featured` + `featured_order` only affe
 ### 6.6 Frontend filtering & i18n
 
 - HomePage holds search + category as **mutually exclusive** filters (activating one clears the other; full reset only via `clearFilters`). Default view shows up to 6 highlighted (featured-first) then the rest.
-- i18n is a custom `LanguageContext` ([src/context/LanguageContext.jsx](../src/context/LanguageContext.jsx)) with dot-path lookup over `en.json`/`ua.json`, persisted in `localStorage['lang']`. Theme is analogous (`localStorage['theme']`, toggles `dark` class on `<html>`).
+- i18n is a custom `LanguageContext` ([src/context/LanguageContext.js](../src/context/LanguageContext.js) + [LanguageProvider.jsx](../src/context/LanguageProvider.jsx) — split into two files so the Provider component doesn't break Vite Fast Refresh) with dot-path lookup over `en.json`/`ua.json`, persisted in `localStorage['lang']`. Theme is analogous (`localStorage['theme']`, toggles `dark` class on `<html>`).
 
 > See [concepts.md — Design tokens and dark mode](concepts.md#design-tokens-and-dark-mode) for how `@theme` and `html.dark` swap token values, and [i18n without a library](concepts.md#i18n-without-a-library) for the custom translation approach.
 
@@ -315,7 +315,7 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 | `/admin/services` | `AdminServicesPage` (lazy) | Table + search + status filter + slide-over `EditPanel` (drag-to-reorder images) |
 | `*` | `NotFoundPage` | 404 |
 
-**State management:** React Context only (no Redux/Zustand). `ThemeContext` + `LanguageContext` wrap the app in `App.jsx`. Server state is fetched ad hoc (`useServices` for public, direct Supabase calls in admin pages). Admin routes are code-split via `React.lazy`.
+**State management:** React Context only (no Redux/Zustand). `ThemeProvider` + `LanguageProvider` wrap the app in `App.jsx`. Server state is fetched ad hoc (`useServices` for public, direct Supabase calls in admin pages). Admin routes are code-split via `React.lazy`.
 
 > See [concepts.md — Lazy loading](concepts.md#lazy-loading-code-splitting) for how `React.lazy` + `Suspense` code-split the admin bundle, and [HMR](concepts.md#hot-module-replacement-hmr) for how Vite's dev server differs from the production build.
 
@@ -325,12 +325,12 @@ Base path `/api` (override with `VITE_API_BASE_URL`). All handlers reject non-ma
 
 > See [testing.md](testing.md) for how to run tests, how to add new ones, and a guide to the coverage gaps.
 
-**159 unit/component tests across 15 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
+**162 unit/component tests across 15 files** (Vitest) + **11 E2E tests across 3 files** (Playwright). External services (Supabase, Telegram, Cloudinary, GitHub) are mocked with `vi.mock()` in unit tests and `page.route()` in E2E — no real network or DB calls.
 
 | File | Tests | Covers |
 | --- | --- | --- |
 | [api/submit-service.test.js](../api/submit-service.test.js) | 32 | All validation rules, honeypot, rate limiting (incl. fail-closed), image filtering, success/error paths |
-| [api/delete-image.test.js](../api/delete-image.test.js) | 10 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, Cloudinary success/error |
+| [api/delete-image.test.js](../api/delete-image.test.js) | 13 | Auth (no header, non-Bearer, invalid token, null user), method check, validation, `CLOUDINARY_UPLOAD_FOLDER` restriction (opt-in), Cloudinary success/error |
 | [api/cleanup-images.test.js](../api/cleanup-images.test.js) | 18 | Orphan deletion, 48h grace period, pagination, empty/null data, Cloudinary failures, Telegram alerts, `CRON_SECRET` guard, services backup |
 | [api/telegram-webhook.test.js](../api/telegram-webhook.test.js) | 15 | Secret check, UUID/action validation, approve/delete, idempotency, errors |
 | [api/_lib/telegram.test.js](../api/_lib/telegram.test.js) | 11 | Message building, escaping, notification payload |
@@ -401,6 +401,7 @@ npm run dev              # Vite dev server with local /api middleware
 | `CLOUDINARY_CLOUD_NAME` | server | Yes | No | Cloudinary cloud for signed delete |
 | `CLOUDINARY_API_KEY` | server | Yes | **Yes** | Cloudinary Admin API key |
 | `CLOUDINARY_API_SECRET` | server | Yes | **Yes** | Cloudinary Admin API secret |
+| `CLOUDINARY_UPLOAD_FOLDER` | server | Optional | No | Defense-in-depth: `/api/delete-image` rejects a `publicId` outside this folder (403). No-op if unset — restored 2026-09-16 after being accidentally dropped in a refactor; see security-audit.md Finding 2 |
 | `TELEGRAM_BOT_TOKEN` | server | Optional* | **Yes** | Bot token for notify + webhook calls |
 | `TELEGRAM_CHAT_ID` | server | Optional* | No | Destination chat for notifications |
 | `TELEGRAM_WEBHOOK_SECRET` | server | Optional* | **Yes** | Verifies incoming Telegram webhook calls |
@@ -513,6 +514,6 @@ Items the code could not confirm, or known gaps worth flagging:
 5. **Local dev API diverges from production** (see §13). Consider importing the real handlers into the Vite middleware so behavior matches.
 6. **Google Analytics / GTM is allowed by CSP but not present in code.** `vercel.json` whitelists `googletagmanager.com` / `google-analytics.com`, yet there is no GA/GTM snippet in `index.html` or `src`. Either wire analytics or tighten the CSP.
 7. **Admin provisioning + Telegram webhook registration are manual.** No scripts in-repo for creating the admin user / `app_metadata.role` claim or for `setWebhook`. Document the exact steps (or script them) so the setup is reproducible.
-8. **Production branch unconfirmed.** CLAUDE.md says `main` auto-deploys; the repo's PR base is `development`. Confirm the Vercel project's production branch.
+8. ~~**Production branch unconfirmed.**~~ Confirmed — Vercel's production branch is `main` (see §12). The repo's PR base is `dev`, not `development` — there is no `development` branch.
 9. ~~**No component/e2e tests.**~~ Partially addressed — component tests cover HomePage filtering, AddServiceForm validation, ServiceList states, and both contexts. E2E tests cover browse, submit, navigation, and lazy-loaded admin login. Remaining gap: admin dashboard pages (queue, services, edit panel). See [testing.md](testing.md).
 10. **Admin session hardening (low priority).** The Supabase access + refresh token pair lives in browser `localStorage`, so any JS on the page (XSS, a malicious extension) can read it; there's no token revocation list (a leaked token works until expiry); and no IP binding / device fingerprinting on the admin session. Mitigated today by CSP, HTTPS, the 1-hour access-token expiry, and a small blast radius (single admin, public-directory data). If data sensitivity rises, harden by moving tokens to `httpOnly` cookies and adding a revocation/blocklist check. See [concepts.md](concepts.md) → "What if the admin JWT is stolen?" for the full threat model.

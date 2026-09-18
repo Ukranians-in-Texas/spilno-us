@@ -27,6 +27,7 @@ These four — `technical-guide`, `concepts`, `walkthrough`, `testing` — are t
 - [manual-testing.md](manual-testing.md) — Manual QA checklist for UI flows, auth, security headers, and edge cases impractical to unit-test.
 - [rate-limiting.md](rate-limiting.md) — Current submission/abuse protections: email rate limit (fails closed), authenticated `delete-image`, and the `CRON_SECRET`-gated cleanup/backup and keep-alive crons — with their known limits.
 - [security-audit.md](security-audit.md) — Security audit (2026-03-12) with findings by severity; fixed items struck through and dated.
+- [db-pause-recovery-plan.md](db-pause-recovery-plan.md) — Incident record (2026-09) for a Supabase auto-pause outage: root cause, the cron/auth/backup fixes that shipped, and closing decisions. Resolved — kept as reference, cross-linked from `security-audit.md` and `rate-limiting.md`.
 
 ## architecture/
 
@@ -65,10 +66,5 @@ Planning and research docs — mostly **(historical)**, completed and superseded
 - [cloudinary-plan.md](plans/cloudinary-plan.md) — *(historical)* Plan for the Cloudinary image integration (completed).
 - [admin-dashboard-research-prompt.md](plans/admin-dashboard-research-prompt.md) — *(historical)* Research prompt that informed the admin dashboard.
 - [admin-dashboard-research-results.md](plans/admin-dashboard-research-results.md) — *(historical)* Research findings/recommended stack for the admin dashboard.
-
-## superpowers/
-
-Feature specs and plans authored via the Superpowers workflow — both **(historical)**, completed.
-
-- [specs/2026-03-20-telegram-approve-deny-design.md](superpowers/specs/2026-03-20-telegram-approve-deny-design.md) — Design spec for Telegram inline Approve/Delete buttons.
-- [plans/2026-03-20-telegram-approve-deny.md](superpowers/plans/2026-03-20-telegram-approve-deny.md) — Task-by-task implementation plan for the same feature.
+- [telegram-approve-deny-design.md](plans/telegram-approve-deny-design.md) — *(historical)* Design spec for Telegram inline Approve/Delete buttons (completed).
+- [telegram-approve-deny-plan.md](plans/telegram-approve-deny-plan.md) — *(historical)* Task-by-task implementation plan for the same feature (completed).

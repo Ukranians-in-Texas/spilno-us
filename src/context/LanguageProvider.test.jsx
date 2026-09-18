@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import { LanguageProvider, LanguageContext } from './LanguageContext';
+import { LanguageProvider } from './LanguageProvider';
+import { LanguageContext } from './LanguageContext';
 import { useContext } from 'react';
 
 function TestConsumer() {
@@ -50,8 +51,6 @@ describe('LanguageContext', () => {
   });
 
   it('returns the key itself for missing translations', () => {
-    render(<LanguageProvider><TestConsumer /></LanguageProvider>);
-    const { t } = screen.getByTestId('lang').closest('div').__test_ctx || {};
     // Test via a component that uses a missing key
     function MissingKey() {
       const { t } = useContext(LanguageContext);
