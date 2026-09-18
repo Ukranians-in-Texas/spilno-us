@@ -27,6 +27,7 @@ These four — `technical-guide`, `concepts`, `walkthrough`, `testing` — are t
 - [manual-testing.md](manual-testing.md) — Manual QA checklist for UI flows, auth, security headers, and edge cases impractical to unit-test.
 - [rate-limiting.md](rate-limiting.md) — Current submission/abuse protections: email rate limit (fails closed), authenticated `delete-image`, and the `CRON_SECRET`-gated cleanup/backup and keep-alive crons — with their known limits.
 - [security-audit.md](security-audit.md) — Security audit (2026-03-12) with findings by severity; fixed items struck through and dated.
+- [db-pause-recovery-plan.md](db-pause-recovery-plan.md) — Incident record (2026-09) for a Supabase auto-pause outage: root cause, the cron/auth/backup fixes that shipped, and closing decisions. Resolved — kept as reference, cross-linked from `security-audit.md` and `rate-limiting.md`.
 
 ## architecture/
 
