@@ -548,5 +548,27 @@
     "submitted_at": "2026-08-31T18:51:17.776201+00:00",
     "created_at": "2026-08-31T18:51:17.776201+00:00",
     "featured_order": null
+  },
+  {
+    "id": "d1d6864b-5b78-4b58-98e8-5d6e85fb92c6",
+    "title": "Learn with Anna Studio",
+    "description_en": "🎹 Unlock the Power of Music: Piano, Voice, Saxophone & Recorders! \n\nHi, I am Hanna Kovalenko, a passionate music educator with a Master’s degree in teaching, classical music training, and decades of educational experience. \n      I offer personalized lessons in piano, voice, alto saxophone, and recorders for children and adults.\n🎹 Develop musical skills, focus, confidence, and creativity while learning your favorite songs, exploring music theory, sight-reading, and ear training.\n💙 Discover the beauty of Ukrainian musical traditions and enjoy personalized lessons tailored to your interests.",
+    "description_ua": "🎹🎷 УРОКИ ФОРТЕПІАНО, ВОКАЛУ, САКСОФОНА ТА БЛОКФЛЕЙТИ\nДля дітей і дорослих!\n\nМене звати Ганна Коваленко. Я захоплена музикою педагогиня, маю ступінь спеціаліста в галузі педагогіки, класичну музичну освіту та багаторічний досвід викладання.\n🎶 Пропоную індивідуальні уроки гри на фортепіано, вокалу, гри на альт-саксофоні та блокфлейті для дітей і дорослих.\n🎹 Разом зі мною ви розвинете музичні навички, зосередженість, упевненість у собі та творчі здібності, навчитеся грати й співати улюблені пісні, читати ноти та краще розуміти музику. Відкриєте для себе красу українських музичних традицій.",
+    "category": "Music / Art Classes for Kids",
+    "address": null,
+    "phone": "3465438214",
+    "email": "annamusicalvibes@gmail.com",
+    "website": "https://www.learnwithanna.com.ua/music/",
+    "instagram": null,
+    "facebook": null,
+    "linkedin": null,
+    "messenger": null,
+    "images": "https://res.cloudinary.com/dqgqk1sqq/image/upload/v1792276436/pjkva7celtg8wcn6xsjn.jpg,https://res.cloudinary.com/dqgqk1sqq/image/upload/v1792276468/op3cw5jptfoaytxfmi6t.jpg,https://res.cloudinary.com/dqgqk1sqq/image/upload/v1792276503/zjonucxcad2nmz8gsqun.jpg,https://res.cloudinary.com/dqgqk1sqq/image/upload/v1792276520/mvtyf2wfz5cvbjnymdrp.jpg,https://res.cloudinary.com/dqgqk1sqq/image/upload/v1792276539/m1wskhoywuulospn6be7.jpg",
+    "approved": true,
+    "featured": false,
+    "notes": null,
+    "submitted_at": "2026-10-17T22:36:18.216697+00:00",
+    "created_at": "2026-10-17T22:36:18.216697+00:00",
+    "featured_order": null
   }
 ]
